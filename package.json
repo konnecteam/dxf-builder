@@ -1,0 +1,65 @@
+{
+  "name": "@konnect/dxf-builder",
+  "version": "4.2.1",
+  "description": "DXF parser for node/browser",
+  "main": "dist/commonjs/konnect-dxf-builder.js",
+  "bin": {
+    "dxf-to-svg": "build/cli.js"
+  },
+  "engines": {
+    "node": ">=8.9.0"
+  },
+  "scripts": {
+    "remove_typings": "node node_modules/json/lib/json -I -f package.json -e \"this.typings=undefined;this._seq=this.dependencies;this.dependencies={};\"",
+    "restore_typings": "node node_modules/json/lib/json -I -f package.json -e \"this.typings='dist/commonjs/typings/konnect-dxf-builder.d.ts';this.dependencies=this._seq;this._seq=undefined;\"",
+    "webpack": "node node_modules/webpack/bin/webpack",
+    "test-mssql": "cross-env DATABASE_TEST=mssql nyc node_modules/mocha/bin/_mocha --exit",
+    "lint": "tslint -c tslint.json 'src/**/*.ts'",
+    "build": "npm run remove_typings && npm run webpack && npm run restore_typings"
+  },
+  "keywords": [
+    "DXF",
+    "Parser",
+    "SVG"
+  ],
+  "author": "konnect <konnect@kimoce.com>",
+  "originalAuthor": "Ben Nortier <ben@bjnortier.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/bjnortier/dxf",
+  "devDependencies": {
+    "@types/mocha": "^2.2.39",
+    "@types/node": "^8.10.38",
+    "babel-core": "^6.18.2",
+    "babel-loader": "^6.2.8",
+    "babel-preset-babili": "0.0.9",
+    "cross-env": "^3.0.0",
+    "expect": "^24.6.0",
+    "mocha": "^5.2.0",
+    "opn": "^6.0.0",
+    "nyc": "^14.1.1",
+    "pre-commit": "^1.2.2",
+    "raw-loader": "^1.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "react-router-dom": "^4.3.1",
+    "rimraf": "^2.6.2",
+    "standard": "^12.0.1",
+    "ts-loader": "^2.0.0",
+    "tslint": "5.20.0",
+    "tslint-eslint-rules": "4.1.1",
+    "tslint-sonarts": "^1.8.0",
+    "typescript": "^3.1.4",
+    "typings": "^2.1.0",
+    "typings-core": "^2.2.0",
+    "webpack": "2.2.1",
+    "webpack-node-externals": "^1.5.4",
+    "json": "^9.0.4",
+    "fs-extra": "^5.0.0",
+    "xml2js": "^0.4.19"
+  },
+  "dependencies": {},
+  "pre-commit": [
+    "lint"
+  ],
+  "typings": "dist/commonjs/typings/konnect-dxf-builder.d.ts"
+}
