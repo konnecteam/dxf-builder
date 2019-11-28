@@ -2,9 +2,10 @@
   "name": "@konnect/dxf-builder",
   "version": "4.2.1",
   "description": "DXF parser for node/browser",
-  "main": "dist/commonjs/konnect-dxf-builder.js",
+  "main": "build/index.js",
   "bin": {
-    "dxf-to-svg": "build/cli.js"
+    "dxf-to-svg-dev": "build/cli.js",
+    "dxf-to-svg": "dist/commonjs/konnect-dxf-cli.js"
   },
   "engines": {
     "node": ">=8.9.0"

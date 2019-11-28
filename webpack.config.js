@@ -9,15 +9,18 @@ const typings = require("typings-core");
 
 const outputDirectory = path.join(__dirname, 'dist/commonjs/');
 
-console.log('Generating typings........');
-typings.bundle({
-  cwd: "build/",
-  out: path.join(outputDirectory, "typings", "konnect-dxf-builder.d.ts")
-});
-console.log('Typings generated');
+// console.log('Generating typings........');
+// typings.bundle({
+//   cwd: "build/",
+//   out: path.join(outputDirectory, "typings", "konnect-dxf-builder.d.ts")
+// });
+// console.log('Typings generated');
 
 module.exports = {
-  entry: "build/index.js",
+  entry: {
+    builder : "build/index.js",
+    cli : "build/cli.js"
+  },
   target: 'node',
   node: {
     __dirname: false,
@@ -25,7 +28,7 @@ module.exports = {
   },
   output: {
     path: outputDirectory,
-    filename: 'konnect-dxf-builder.js',
+    filename: 'konnect-dxf-[name].js',
 	  libraryTarget : "commonjs"
   },
   externals: [nodeExternals({
