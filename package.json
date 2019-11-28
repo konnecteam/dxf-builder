@@ -4,7 +4,7 @@
   "description": "DXF parser for node/browser",
   "main": "build/index.js",
   "bin": {
-    "dxf-to-svg": "dist/commonjs/konnect-dxf-cli.js"
+    "dxf-to-svg": "build/cli.js"
   },
   "engines": {
     "node": ">=8.9.0"
@@ -15,7 +15,8 @@
     "webpack": "node node_modules/webpack/bin/webpack",
     "test-mssql": "cross-env DATABASE_TEST=mssql nyc node_modules/mocha/bin/_mocha --exit",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
-    "build": "npm run remove_typings && npm run webpack && npm run restore_typings"
+    "build-old": "npm run remove_typings && npm run webpack && npm run restore_typings",
+    "build" : "cp -Rf ./build/ ./dist/"
   },
   "keywords": [
     "DXF",
