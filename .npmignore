@@ -1,2 +1,7 @@
-babel.config.js
-test/
+/test/
+/src/
+webpack.config.js
+tslint.json
+tsconfig.json
+/.nyc_output/
+/.dglobal/

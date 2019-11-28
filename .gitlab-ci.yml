@@ -1,6 +1,5 @@
 stages:
   - build
-  - extra
 
 variables:
   KNT_ORIGINAL_PROJECT_PATH: "konnect/dxf-builder"
@@ -10,10 +9,16 @@ variables:
 
 build_branch:
   stage: build
-  tags:
-    - linux
   script:
   # On récupère les scripts de build
   - npm install --prefix $CI_PROJECT_DIR/.dglobal/ $KNT_BUILDER_TOOLS -g
-  # Builds & tests & deploy
-  - (cd $KNT_PATH_BUILDER_TOOLS && npm run build-n-deploy-server $CI_PROJECT_DIR $KNT_ORIGINAL_PROJECT_PATH $KNT_BUILD_GIT_REPO) || exit 1;
+  # Mise en place des versions dans le package.json
+  - (node $KNT_PATH_BUILDER_TOOLS/tasks/common/prepare-build-client.js) || exit 1;
+  # Récupération du nom du projet
+  - export KNT_PACKAGE_NAME=$(node $KNT_PATH_BUILDER_TOOLS/tasks/common/get-project-name)
+  # Compilation
+  - npm install
+  - tsc
+  # Push to NPM @konnect/sequelize
+  - $KNT_PATH_BUILDER_TOOLS/tasks/linux/common/push-to-gogit.sh $KNT_BUILD_GIT_REPO $CI_COMMIT_REF_NAME $KNT_ORIGINAL_PROJECT_PATH $KNT_PACKAGE_NAME
+  - $KNT_PATH_BUILDER_TOOLS/tasks/linux/common/clean-tmp.sh
