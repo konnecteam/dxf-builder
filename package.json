@@ -4,7 +4,6 @@
   "description": "DXF parser for node/browser",
   "main": "build/index.js",
   "bin": {
-    "dxf-to-svg-dev": "build/cli.js",
     "dxf-to-svg": "dist/commonjs/konnect-dxf-cli.js"
   },
   "engines": {
