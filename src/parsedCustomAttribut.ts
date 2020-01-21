@@ -1,83 +1,98 @@
+import entityToPolyline from './entityToPolyline';
+
 export default (entities, denormalisedEntities) => {
-  const reduceEntities = entities.reduce((acc, entity) => {
-    if (entity.objvalId) {
-      const customAttribut = entity.objvalId;
-      if (!acc[customAttribut]) {
-        acc[customAttribut] = {};
-        acc[customAttribut]['objvalId'] = customAttribut;
-        acc[customAttribut]['coordinate'] = [];
+
+  // on récupère et reconstruit les entités avec les attributs qui leur sont liés
+  const entitiesWithAttributs = entities.reduce((acc, entity) => {
+    if (entity.type) {
+      const id = entity.type === 'INSERT' ? entity.blockId : entity.type === 'ATTRIB' ? entity.objvalId : null;
+      if (id && !acc[id]) {
+        acc[id] = {
+          objvalId : id,
+        };
       }
-      if (!acc[customAttribut]['blockName']) {
-        acc[customAttribut]['blockName'] = entity.block;
+      if (entity.type === 'INSERT') {
+        acc[id]['blockName'] = entity.block;
+        acc[id]['layer'] = entity.layer;
+        acc[id]['insertCoord'] = {x : entity.x, y : entity.y};
+      } else if (entity.type === 'ATTRIB') {
+        acc[id][entity.key] = entity.value;
       }
-      const point = {x : entity.x, y : entity.y};
-      acc[customAttribut]['coordinate'].push(point);
-      acc[customAttribut][entity.key] = entity.value;
+      return acc;
     }
-    return acc;
   }, {});
 
-  const insertEntities = entities.filter(e => e.type === 'INSERT');
-
-  // trouve les blockName de chaque entité
-  for (const reduceEntityIndex in reduceEntities) {
-    if (reduceEntityIndex) {
-      // le blockName est le block de l'entité INSERT qui a le blockId == au objvalId des entités attrib
-      reduceEntities[reduceEntityIndex].blockName = insertEntities.find(ie => {
-        return ie.blockId === reduceEntities[reduceEntityIndex].objvalId;
-      }).block;
+  // on garde seulement les entités qui ont les attributs de localisation (LOCAL, $AREA, $PERIMETER)
+  const refactorEntities = {};
+  for (const i in entitiesWithAttributs) {
+    if (entitiesWithAttributs[i] && (entitiesWithAttributs[i].hasOwnProperty('LOCAL') || entitiesWithAttributs[i].hasOwnProperty('$AREA') ||
+    entitiesWithAttributs[i].hasOwnProperty('$PERIMETER') || entitiesWithAttributs[i].hasOwnProperty('HANDLES'))) {
+      refactorEntities[i] = entitiesWithAttributs[i];
     }
   }
 
-  // trouve les polylines autour de chaque entité
-  const polylines = denormalisedEntities.filter(denormalisedEntity => {
-    return ((denormalisedEntity.type === 'LWPOLYLINE' || denormalisedEntity.type === 'POLYLINE')
-      && denormalisedEntity.id && denormalisedEntity.layer.toUpperCase() === 'LOCALISATION'
-      && denormalisedEntity.closed);
+  const polylines = denormalisedEntities
+  .filter( de => {
+    return de.type === 'LWPOLYLINE' || de.type === 'POLYLINE' || de.type === 'CIRCLE' || de.type === 'ELLIPSE';
+  })
+  .map( de => {
+    if ( de.type === 'LWPOLYLINE' || de.type === 'POLYLINE' ) {
+      return de;
+    } else if ( de.type === 'CIRCLE' || de.type === 'ELLIPSE') {
+      // convertion en polyline des formes arrondies
+      const arrayVertices = entityToPolyline(de);
+      de.vertices = arrayVertices.map(vertice => {
+        return {
+          x : vertice[0],
+          y : vertice[1],
+        };
+      });
+      return de;
+    }
   });
 
-  for (const i in reduceEntities) {
-    if (reduceEntities[i].blockName === 'INFO_LOCAL') {
-      // on regarde les polylines qui entoure l'entité courante
+  for (const refactorEntity in refactorEntities) {
+    if (refactorEntity) {
+    // on regarde les polylines qui entoure l'entité courante dont le layer est le meme
       const polylinesInside = polylines.filter(polyline => {
-        return inside(reduceEntities[i].coordinate[0], polyline.vertices);
+        if (polyline.layer === refactorEntities[refactorEntity].layer) {
+          return insidePolygon(refactorEntities[refactorEntity].insertCoord, polyline.vertices);
+        } else {
+          return false;
+        }
       });
-
       if (polylinesInside && polylinesInside.length > 0) {
-        // on cacule le perimeter de chacune
+        // on calcule le perimeter de chacune
         polylinesInside.forEach( p => {
-          p.perimeter = perimeter(p.vertices);
+          p.perimeter = perimeterPolygon(p.vertices);
         });
 
         // celle qui a le plus petit perimeter est celle que nous voulons
-        reduceEntities[i].polyline = polylinesInside.reduce((prev, curr) => {
+        refactorEntities[refactorEntity].polyline = polylinesInside.reduce((prev, curr) => {
           return prev.perimeter < curr.perimeter ? prev : curr;
         });
       } else {
-        // on est sur l'étage ? On prend un truc random ?
-        reduceEntities[i].polyline = polylines[0];
+        // on est sur l'étage
+        // on ne peut pas trouver la localisation de l'étage, on lui met un -1 par default
+        refactorEntities[refactorEntity].polyline = {closed : true, layer : 'Localisation', id : '-1', vertices : [] }; // polylines[0];
       }
       // si on a une polyline qui entoure l'entité
-      if (reduceEntities[i].polyline) {
+      if (refactorEntities[refactorEntity].polyline) {
         // on ajoute la surface et le perimetre
-        reduceEntities[i].polyline.perimeter = perimeter(reduceEntities[i].polyline.vertices);
-        reduceEntities[i].polyline.surface = surface(reduceEntities[i].polyline.vertices);
-
-        //pour debuggue
-        reduceEntities[i].polyline.svg = arrayToSvgLine(reduceEntities[i].polyline.vertices);
+        refactorEntities[refactorEntity].polyline.perimeter = perimeterPolygon(refactorEntities[refactorEntity].polyline.vertices);
+        refactorEntities[refactorEntity].polyline.surface = surfacePolygon(refactorEntities[refactorEntity].polyline.vertices);
       }
     }
   }
-  return reduceEntities;
+  return refactorEntities;
 };
-
 
 /**
  * return si le point est dans la polyline
  * @param point : {x: number, y: number}
  * @param polyline : {x: number, y: number}[]
  */
-function inside(point, polyline) {
+function insidePolygon(point, polyline) {
 
   const x = point.x;
   const y = point.y;
@@ -109,7 +124,7 @@ function arrayToSvgLine(array) {
  * return la surface dans la polyline donnée : number
  * @param {x : number, y : number}[] vertices  : les coordonnées des sommets de la polylines
  */
-function surface(vertices) {
+function surfacePolygon(vertices) {
   let sum1 = 0;
   let sum2 = 0;
   vertices.forEach((vertice, i) => {
@@ -128,7 +143,7 @@ function surface(vertices) {
  * return le périmètre dans la polyline donnée : number
  * @param {x : number, y : number}[] vertices  : les coordonnées des sommets de la polylines
  */
-function perimeter(vertices) {
+function perimeterPolygon(vertices) {
   let perim = 0;
   vertices.forEach((vertice, i) => {
     if (i === vertices.length - 1) {

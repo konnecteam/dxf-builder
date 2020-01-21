@@ -136,7 +136,7 @@ export default tuples => {
             header.updateDate = value;
             state = undefined;
           } else if (state === 'drawingUnit') {
-            header.drawingUnit = value;
+            header.drawingUnit = drawingUnitEnum[value];
             state = undefined;
           } else {
             state = undefined;
