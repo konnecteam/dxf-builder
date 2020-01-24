@@ -1,6 +1,6 @@
 {
   "name": "@konnect/dxf-builder",
-  "version": "4.2.1",
+  "version": "5.0.1",
   "description": "DXF parser for node/browser",
   "main": "build/index.js",
   "bin": {
