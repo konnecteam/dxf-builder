@@ -12,6 +12,8 @@ export default class Helper {
   private _denormalised : any;
   private _groups : any;
   private _customAttributs : any;
+  private _localisations : any;
+  private _blockEntities : any;
 
   constructor(contents) {
     if (typeof contents !== 'string') {
@@ -67,6 +69,8 @@ export default class Helper {
 
   public customAttribut() {
     this._customAttributs = parsedCustomAttribut(this.parsed.entities, this.denormalised);
+    this._localisations = this._customAttributs.localisationEntities;
+    this._blockEntities = this._customAttributs.blockEntities;
   }
 
   get customAttributs() {
@@ -74,5 +78,19 @@ export default class Helper {
       this.customAttribut();
     }
     return this._customAttributs;
+  }
+
+  get localisations() {
+    if (!this._customAttributs) {
+      this.customAttribut();
+    }
+    return this._localisations;
+  }
+
+  get blockEntities() {
+    if (!this._customAttributs) {
+      this.customAttribut();
+    }
+    return this._blockEntities;
   }
 }

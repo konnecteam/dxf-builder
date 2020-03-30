@@ -23,11 +23,16 @@ export default (entities, denormalisedEntities) => {
   }, {});
 
   // on garde seulement les entités qui ont les attributs de localisation (LOCAL, $AREA, $PERIMETER)
-  const refactorEntities = {};
+  const localisationEntities = {};
+  const blockEntities = {};
   for (const i in entitiesWithAttributs) {
-    if (entitiesWithAttributs[i] && (entitiesWithAttributs[i].hasOwnProperty('LOCAL') || entitiesWithAttributs[i].hasOwnProperty('$AREA') ||
+    if (entitiesWithAttributs[i] && entitiesWithAttributs[i].hasOwnProperty('OBJIDENTVAL') && (entitiesWithAttributs[i].hasOwnProperty('LOCAL') || entitiesWithAttributs[i].hasOwnProperty('$AREA') ||
     entitiesWithAttributs[i].hasOwnProperty('$PERIMETER') || entitiesWithAttributs[i].hasOwnProperty('HANDLES'))) {
-      refactorEntities[i] = entitiesWithAttributs[i];
+      localisationEntities[i] = entitiesWithAttributs[i];
+    } else {
+      // c'est les blocks déplaçables ? Qu'est ce qu'on en fait ?
+      // Il faut les propriétés liées pour savoir si c'est un block Kimoce qu'on va pouvoir changer.
+      blockEntities[i] = entitiesWithAttributs[i];
     }
   }
 
@@ -51,12 +56,12 @@ export default (entities, denormalisedEntities) => {
     }
   });
 
-  for (const refactorEntity in refactorEntities) {
+  for (const refactorEntity in localisationEntities) {
     if (refactorEntity) {
     // on regarde les polylines qui entoure l'entité courante dont le layer est le meme
       const polylinesInside = polylines.filter(polyline => {
-        if (polyline.layer === refactorEntities[refactorEntity].layer) {
-          return insidePolygon(refactorEntities[refactorEntity].insertCoord, polyline.vertices);
+        if (polyline.layer === localisationEntities[refactorEntity].layer) {
+          return insidePolygon(localisationEntities[refactorEntity].insertCoord, polyline.vertices);
         } else {
           return false;
         }
@@ -68,23 +73,26 @@ export default (entities, denormalisedEntities) => {
         });
 
         // celle qui a le plus petit perimeter est celle que nous voulons
-        refactorEntities[refactorEntity].polyline = polylinesInside.reduce((prev, curr) => {
+        localisationEntities[refactorEntity].polyline = polylinesInside.reduce((prev, curr) => {
           return prev.perimeter < curr.perimeter ? prev : curr;
         });
       } else {
         // on est sur l'étage
         // on ne peut pas trouver la localisation de l'étage, on lui met un -1 par default
-        refactorEntities[refactorEntity].polyline = {closed : true, layer : 'Localisation', id : '-1', vertices : [] }; // polylines[0];
+        localisationEntities[refactorEntity].polyline = {closed : true, layer : 'Localisation', id : '-1', vertices : [] }; // polylines[0];
       }
       // si on a une polyline qui entoure l'entité
-      if (refactorEntities[refactorEntity].polyline) {
+      if (localisationEntities[refactorEntity].polyline) {
         // on ajoute la surface et le perimetre
-        refactorEntities[refactorEntity].polyline.perimeter = perimeterPolygon(refactorEntities[refactorEntity].polyline.vertices);
-        refactorEntities[refactorEntity].polyline.surface = surfacePolygon(refactorEntities[refactorEntity].polyline.vertices);
+        localisationEntities[refactorEntity].polyline.perimeter = perimeterPolygon(localisationEntities[refactorEntity].polyline.vertices);
+        localisationEntities[refactorEntity].polyline.surface = surfacePolygon(localisationEntities[refactorEntity].polyline.vertices);
       }
     }
   }
-  return refactorEntities;
+  return {
+    localisationEntities,
+    blockEntities //
+  };
 };
 
 /**

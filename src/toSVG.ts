@@ -61,7 +61,7 @@ const circle = (entity, needFill = false) => {
       y: entity.y - entity.r
     });
   const id = parseInt(entity.id, 16);
-  const element0 = `<circle id="${id}" cx="${entity.x}" cy="${-entity.y}" r="${entity.r}"}/>`; // on inverse 'y' ici
+  const element0 = `<circle id="${id}" cx="${entity.x}" cy="${-entity.y}" r="${entity.r}"/>`; // on inverse 'y' ici
   const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: element0 });
   return transformBoundingBoxAndElement(bbox, element, entity.transforms);
 };
@@ -240,7 +240,7 @@ const _displayBlocks = elements => {
   let returnValue = '';
   keys.forEach(key => { //class="draggable" fill="transparent"
     if ( key !== 'noBlock') {
-      returnValue += `<g id="${key}" pv-block="_draggable">
+      returnValue += `<g id="${key}">
       <!--Autodesk.AutoCAD.DatabaseServices.BlockReference-->
       ${elements[key].join('\n')}
       </g>\n`;
@@ -294,15 +294,15 @@ const _displayScript = parsed => {
 export default parsed => {
 
   const entities = denormalise(parsed);
-  const customAttributs = parsedCustomAttribut(parsed.entities, entities);
+  const localisations = parsedCustomAttribut(parsed.entities, entities).localisationEntities;
   const listOfPolylines = [];
-  for ( const i in customAttributs) {
-    if (customAttributs[i]) {
-      const customAttribut = customAttributs[i];
-      if (customAttribut['HANDLES'] && customAttribut['HANDLES'] !== '') {
-        listOfPolylines.push(customAttribut['HANDLES'].toUpperCase());
-      } else if (customAttribut.polyline && customAttribut.polyline.id && customAttribut.polyline !== -1) {
-        listOfPolylines.push(customAttribut.polyline.id);
+  for ( const i in localisations) {
+    if (localisations[i]) {
+      const localisation = localisations[i];
+      if (localisation['HANDLES'] && localisation['HANDLES'] !== '') {
+        listOfPolylines.push(localisation['HANDLES'].toUpperCase());
+      } else if (localisation.polyline && localisation.polyline.id && localisation.polyline !== -1) {
+        listOfPolylines.push(localisation.polyline.id);
       }
     }
   }
