@@ -59,8 +59,14 @@ export default class Helper {
     return this._groups;
   }
 
-  public toSVG() {
-    return toSVG(this.parsed);
+  /**
+   * parse le dxf en svg
+   * return le svg
+   * @param ignoringLayers : la liste de layers à ignorer
+   * @param ignoreBaseLayer : doit-on prendre en compte le layer 0 pour la viewbox
+   */
+  public toSVG(ignoringLayers : string[] = [], ignoreBaseLayer : boolean = true) {
+    return toSVG(this.parsed, ignoringLayers, ignoreBaseLayer);
   }
 
   public toPolylines() {

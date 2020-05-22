@@ -221,16 +221,17 @@ const shouldFillEntity = (entity, list) => {
 /**
  * On ajoute les layers autour des blocks
  */
-const _displayLayers = elements => {
+const _displayLayers = (elements, ignoringLayers : string[] = []) => {
   let keys = Object.keys(elements);
   keys = keys.sort();
   let returnValue = '';
   keys.forEach(key => {
-    returnValue += `<g id="${key}">
-    ${_displayBlocks(elements[key])}
-  </g>\n`;
+    // on ne traite pas les layers à ignorer
+    if (!ignoringLayers.includes(key)) {
+      returnValue += `<g id="${key}">${_displayBlocks(elements[key])}</g>`;
+    }
   });
-  return pd.xml(returnValue);
+  return (returnValue);
 };
 /**
  * On ajoute les noms des blocks autour des entités
@@ -240,15 +241,12 @@ const _displayBlocks = elements => {
   let returnValue = '';
   keys.forEach(key => { //class="draggable" fill="transparent"
     if ( key !== 'noBlock') {
-      returnValue += `<g id="${key}">
-      <!--Autodesk.AutoCAD.DatabaseServices.BlockReference-->
-      ${elements[key].join('\n')}
-      </g>\n`;
+      returnValue += `<g id="${key}">${elements[key].join(' ')}</g>`;
     } else {
-      returnValue += elements['noBlock'].join('\n');
+      returnValue += elements['noBlock'].join(' ');
     }
   });
-  return pd.xml(returnValue);
+  return (returnValue);
 };
 
 const _displayScript = parsed => {
@@ -291,7 +289,7 @@ const _displayScript = parsed => {
   return JSON.stringify(info);
 };
 
-export default parsed => {
+export default (parsed, ignoringLayers : string[] = [], ignoreBaseLayer : boolean = true) => {
 
   const entities = denormalise(parsed);
   const localisations = parsedCustomAttribut(parsed.entities, entities).localisationEntities;
@@ -314,7 +312,7 @@ export default parsed => {
        && (!isNaN(boundsAndElement.bbox.min.x)) && (!isNaN(boundsAndElement.bbox.min.y))
        && (!isNaN(boundsAndElement.bbox.max.x)) && (!isNaN(boundsAndElement.bbox.max.y))) {
       const { bbox, element } = boundsAndElement;
-      if ( entity.layer !== '0') {
+      if ( entity.layer !== '0' || !ignoreBaseLayer) {
         acc.bbox.expandByPoint(bbox.min);
         acc.bbox.expandByPoint(bbox.max);
       }
@@ -362,7 +360,7 @@ export default parsed => {
   </defs>
   <g id="_kimplan_plan_">
     <g stroke="#000000" stroke-width="0.1%">
-      ${_displayLayers(view.elements)}
+      ${_displayLayers(view.elements, ignoringLayers)}
 
     </g>
   </g>
