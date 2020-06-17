@@ -249,12 +249,12 @@ const _displayBlocks = elements => {
   return (returnValue);
 };
 
-const _displayScript = parsed => {
+const _displayScript = (parsed, groups, ignoringLayers) => {
   const listOfLayers = [];
-  for (const layer in parsed.tables.layers) {
-    if (layer) {
+  for (const layer in groups) {
+    if (layer && !ignoringLayers.includes(layer)) {
       let visible = 0;
-      if (!parsed.tables.layers[layer].visible || parsed.tables.layers[layer].visible === 0) {
+      if (parsed.tables.layers[layer] && (!parsed.tables.layers[layer].visible || parsed.tables.layers[layer].visible === 0)) {
         visible = 1;
       }
       listOfLayers.push(
@@ -289,7 +289,7 @@ const _displayScript = parsed => {
   return JSON.stringify(info);
 };
 
-export default (parsed, ignoringLayers : string[] = [], ignoreBaseLayer : boolean = true) => {
+export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer : boolean = true) => {
 
   const entities = denormalise(parsed);
   const localisations = parsedCustomAttribut(parsed.entities, entities).localisationEntities;
@@ -365,6 +365,6 @@ export default (parsed, ignoringLayers : string[] = [], ignoreBaseLayer : boolea
     </g>
   </g>
 
-  <script type="text/ecmascript"><![CDATA[var jsonInfoPlan = ${_displayScript(parsed)};]]></script>
+  <script type="text/ecmascript"><![CDATA[var jsonInfoPlan = ${_displayScript(parsed, groups, ignoringLayers)};]]></script>
 </svg>`;
 };

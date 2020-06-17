@@ -20,7 +20,7 @@ commander
       });
     }
 
-    fs.writeFileSync(svgFile || `${dxfFile.split('.').slice(0, -1).join('.')}.svg`, toSVG(parsed), 'utf-8');
+    fs.writeFileSync(svgFile || `${dxfFile.split('.').slice(0, -1).join('.')}.svg`, toSVG(parsed, null), 'utf-8');
   })
   .parse(process.argv);
 
