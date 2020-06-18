@@ -66,7 +66,7 @@ export default class Helper {
    * @param ignoreBaseLayer : doit-on prendre en compte le layer 0 pour la viewbox
    */
   public toSVG(ignoringLayers : string[] = [], ignoreBaseLayer : boolean = true) {
-    return toSVG(this.parsed, ignoringLayers, ignoreBaseLayer);
+    return toSVG(this.parsed, this.groups, ignoringLayers, ignoreBaseLayer);
   }
 
   public toPolylines() {
