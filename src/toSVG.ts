@@ -148,6 +148,61 @@ const arc = (entity, needFill = false) => {
   return transformBoundingBoxAndElement(bbox, element, entity.transforms);
 };
 
+const text = (entity, rgb, styles) => {
+  const rotationValue = entity.rotation ? -entity.rotation : 0; // on recupre la rotation
+  const styleName = getStyle(entity, styles);
+  let element = `<g transform="rotate(${rotationValue}, ${entity.x}, ${-entity.y})" >`;
+  element += `<text x="${entity.x}" y="${-entity.y}" font-size="${entity.height}" font-family="${styleName}" fill="rgb(${rgb[0]},${rgb[1]},${rgb[2]})">${entity.textValue}</text>`;
+  element += `</g>`;
+  return { bbox : new Box2(), element};
+};
+
+const mtext = (entity, rgb, styles) => {
+  const angleRadian = (entity.xAxisY > 0) ? Math.acos(entity.xAxisX) : -Math.acos(entity.xAxisX);
+  const angleDegrees = angleRadian * 180 / Math.PI;
+  const angleValue = isNaN(angleDegrees) ? 0 : -angleDegrees; // on recupere l'angle de rotation
+  const lines = entity.string.split('\\P'); // on split le text en ligne
+  const matrices = entity.transforms.map(transform => {
+    // Create the transformation matrix
+    const tx = transform.x || 0;
+    const ty = transform.y || 0;
+    let e;
+    let f;
+    if (transform.extrusionZ === -1) {
+      e = -tx;
+      f = ty;
+    } else { // avec l'inverse du Y, il faut faire cette rotation pour être à l'endroit
+      e = tx;
+      f = -ty;
+    }
+    return [1, 0, 0, 1, e, f];
+  });
+
+  const styleName = getStyle(entity, styles); // on recupere la police
+
+  let element = '';
+  matrices.reverse();
+  matrices.forEach(([a, b, c, d, e, f]) => {
+    element += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})">`;
+  });
+
+  element += `<g transform="rotate(${angleValue}, ${entity.x}, ${-entity.y})">`;
+  element += `<text x="${entity.x}" y="${-entity.y}" font-size="${entity.nominalTextHeight}" font-family="${styleName}" fill="rgb(${rgb[0]},${rgb[1]},${rgb[2]})">`; // font-family="${entity.styleName}"
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    element += `<tspan x="${entity.x}" dy="${entity.nominalTextHeight * entity.lineSpacingFactor}">${line}</tspan>`;
+  }
+  element += `</text></g>`;
+  matrices.forEach(transform => {
+    element += '</g>';
+  });
+  return { bbox : new Box2(), element};
+};
+
+function getStyle(entity, styles) : string {
+  return styles[entity.styleName] ? styles[entity.styleName].fontFamily : 'ARIAL';
+}
+
 export const piecewiseToPaths = (k, controlPoints) => {
   const nSegments = (controlPoints.length - 1) / (k - 1);
   const paths = [];
@@ -178,7 +233,7 @@ const bezier = (entity, needFill = false) => {
  * Switch the appropriate function on entity type. CIRCLE, ARC and ELLIPSE
  * produce native SVG elements, the rest produce interpolated polylines.
  */
-const entityToBoundsAndElement = (entity, needFill = false) => {
+const entityToBoundsAndElement = (entity, needFill = false, rgb?, styles?) => {
   switch (entity.type) {
     case 'CIRCLE':
       return circle(entity, needFill);
@@ -202,9 +257,11 @@ const entityToBoundsAndElement = (entity, needFill = false) => {
     case 'POLYLINE': {
       return polyline(entity, needFill);
     }
-    // case 'MTEXT' : {
-    //   return mtext(entity)
-    // }
+    case 'TEXT':
+      return text(entity, rgb, styles);
+    case 'MTEXT' : {
+      return mtext(entity, rgb, styles);
+    }
     // case 'ATTRIB' : {
     //   return attrib(entity)
     // }
@@ -293,6 +350,7 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
 
   const entities = denormalise(parsed);
   const localisations = parsedCustomAttribut(parsed.entities, entities).localisationEntities;
+  const localisationsId = Object.keys(localisations);
   const listOfPolylines = [];
   for ( const i in localisations) {
     if (localisations[i]) {
@@ -307,26 +365,30 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
   const view = entities.reduce((acc, entity, i) => {
     const rgb = getRGBForEntity(parsed.tables.layers, entity);
     const fill = shouldFillEntity(entity, listOfPolylines);
-    const boundsAndElement = entityToBoundsAndElement(entity, fill);
-    if (boundsAndElement && boundsAndElement.bbox && boundsAndElement.bbox.min && boundsAndElement.bbox.max
-       && (!isNaN(boundsAndElement.bbox.min.x)) && (!isNaN(boundsAndElement.bbox.min.y))
-       && (!isNaN(boundsAndElement.bbox.max.x)) && (!isNaN(boundsAndElement.bbox.max.y))) {
-      const { bbox, element } = boundsAndElement;
-      if ( entity.layer !== '0' || !ignoreBaseLayer) {
-        acc.bbox.expandByPoint(bbox.min);
-        acc.bbox.expandByPoint(bbox.max);
-      }
-      if (!acc.elements[entity.layer]) {
-        acc.elements[entity.layer] = [];
-        acc.elements[entity.layer]['noBlock'] = [];
-      }
-      if (entity.blockId) {
-        if (!acc.elements[entity.layer][entity.blockId]) {
-          acc.elements[entity.layer][entity.blockId] = [];
+    const isText = entity.type === 'MTEXT' || entity.type === 'TEXT';
+    // on check si ce n'est pas le text du bloc de localisation
+    if (!isText || !localisationsId.includes(entity.blockId)) {
+      const boundsAndElement = entityToBoundsAndElement(entity, fill, rgb, parsed.tables.styles);
+      if (boundsAndElement && boundsAndElement.bbox && boundsAndElement.bbox.min && boundsAndElement.bbox.max
+        && (!isNaN(boundsAndElement.bbox.min.x)) && (!isNaN(boundsAndElement.bbox.min.y))
+        && (!isNaN(boundsAndElement.bbox.max.x)) && (!isNaN(boundsAndElement.bbox.max.y))) {
+        const { bbox, element } = boundsAndElement;
+        if ( entity.layer !== '0' || !ignoreBaseLayer) {
+          acc.bbox.expandByPoint(bbox.min);
+          acc.bbox.expandByPoint(bbox.max);
         }
-        acc.elements[entity.layer][entity.blockId].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
-      } else {
-        acc.elements[entity.layer]['noBlock'].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
+        if (!acc.elements[entity.layer]) {
+          acc.elements[entity.layer] = {};
+          acc.elements[entity.layer]['noBlock'] = [];
+        }
+        if (entity.blockId) {
+          if (!acc.elements[entity.layer][entity.blockId]) {
+            acc.elements[entity.layer][entity.blockId] = [];
+          }
+          acc.elements[entity.layer][entity.blockId].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
+        } else {
+          acc.elements[entity.layer]['noBlock'].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
+        }
       }
     }
     return acc;

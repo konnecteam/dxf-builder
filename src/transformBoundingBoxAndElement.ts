@@ -5,7 +5,7 @@ import { Box2 } from 'vecks';
  * transforms. The <g> element are created in reverse transform
  * order and the bounding box in the given order.
  */
-export default (bbox, element, transforms) => {
+export default (bbox, element, transforms, scaleStroke = true) => {
   let transformedElement = '';
   const matrices = transforms.map(transform => {
     // Create the transformation matrix
@@ -73,7 +73,7 @@ export default (bbox, element, transforms) => {
 
   matrices.reverse();
   matrices.forEach(([a, b, c, d, e, f]) => {
-    transformedElement += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})">`;
+    transformedElement += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})" ${scaleStroke ? 'stroke-width="' + 1 / Math.sqrt(a * a + b * b) + '"' : ''}>`; // si on scale, il faut que le stroke-width suive
   });
   transformedElement += element;
   matrices.forEach(transform => {

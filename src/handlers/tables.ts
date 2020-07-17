@@ -62,6 +62,9 @@ const styleHandler = tuples => {
       case 4:
         style.bigFontFileName = value;
         break;
+      case 1000:
+        style.fontFamily = value;
+        break;
       default:
     }
     return style;
