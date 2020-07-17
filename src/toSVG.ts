@@ -150,7 +150,7 @@ const arc = (entity, needFill = false) => {
 
 const text = (entity, rgb, styles) => {
   const rotationValue = entity.rotation ? -entity.rotation : 0; // on recupre la rotation
-  const styleName = styles[entity.styleName] ? styles[entity.styleName].fontFamily : 'ARIAL'; // on recupere la police
+  const styleName = getStyle(entity, styles);
   let element = `<g transform="rotate(${rotationValue}, ${entity.x}, ${-entity.y})" >`;
   element += `<text x="${entity.x}" y="${-entity.y}" font-size="${entity.height}" font-family="${styleName}" fill="rgb(${rgb[0]},${rgb[1]},${rgb[2]})">${entity.textValue}</text>`;
   element += `</g>`;
@@ -178,7 +178,7 @@ const mtext = (entity, rgb, styles) => {
     return [1, 0, 0, 1, e, f];
   });
 
-  const styleName = styles[entity.styleName] ? styles[entity.styleName].fontFamily : 'ARIAL'; // on recupere la police
+  const styleName = getStyle(entity, styles); // on recupere la police
 
   let element = '';
   matrices.reverse();
@@ -198,6 +198,10 @@ const mtext = (entity, rgb, styles) => {
   });
   return { bbox : new Box2(), element};
 };
+
+function getStyle(entity, styles) : string {
+  return styles[entity.styleName] ? styles[entity.styleName].fontFamily : 'ARIAL';
+}
 
 export const piecewiseToPaths = (k, controlPoints) => {
   const nSegments = (controlPoints.length - 1) / (k - 1);
