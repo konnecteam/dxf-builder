@@ -11,6 +11,7 @@ import point from './entity/point';
 import polyline from './entity/polyline';
 import solid from './entity/solid';
 import spline from './entity/spline';
+import text from './entity/text';
 import vertex from './entity/vertex';
 
 const handlers = [
@@ -27,6 +28,7 @@ const handlers = [
   mtext,
   insert,
   attrib,
+  text,
 ].reduce((acc, mod) => {
   acc[mod.TYPE] = mod;
   return acc;
