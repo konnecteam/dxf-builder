@@ -373,7 +373,8 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
         && (!isNaN(boundsAndElement.bbox.min.x)) && (!isNaN(boundsAndElement.bbox.min.y))
         && (!isNaN(boundsAndElement.bbox.max.x)) && (!isNaN(boundsAndElement.bbox.max.y))) {
         const { bbox, element } = boundsAndElement;
-        if ( entity.layer !== '0' || !ignoreBaseLayer) {
+        if ((entity.layer !== '0' || !ignoreBaseLayer) && (entity.type !== 'MTEXT' && entity.type !== 'TEXT' )) {
+          // on ignore les texts car on ne peut pas savoir la taille réelle de leur bbox à ce moment là
           acc.bbox.expandByPoint(bbox.min);
           acc.bbox.expandByPoint(bbox.max);
         }
