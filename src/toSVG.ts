@@ -372,26 +372,26 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
       if (boundsAndElement && boundsAndElement.bbox && boundsAndElement.bbox.min && boundsAndElement.bbox.max
         && (!isNaN(boundsAndElement.bbox.min.x)) && (!isNaN(boundsAndElement.bbox.min.y))
         && (!isNaN(boundsAndElement.bbox.max.x)) && (!isNaN(boundsAndElement.bbox.max.y))) {
-        if (!(Math.abs(boundsAndElement.bbox.min.x) === Infinity || Math.abs(boundsAndElement.bbox.min.y) === Infinity ||
-        Math.abs(boundsAndElement.bbox.max.x) === Infinity || Math.abs(boundsAndElement.bbox.max.y) === Infinity)) {
-          const { bbox, element } = boundsAndElement;
+        const { bbox, element } = boundsAndElement;
+        if (!(Math.abs(bbox.min.x) === Infinity || Math.abs(bbox.min.y) === Infinity ||
+        Math.abs(bbox.max.x) === Infinity || Math.abs(bbox.max.y) === Infinity)) {
           if ((entity.layer !== '0' || !ignoreBaseLayer) && (entity.type !== 'MTEXT' && entity.type !== 'TEXT' )) {
             // on ignore les texts car on ne peut pas savoir la taille réelle de leur bbox à ce moment là
             acc.bbox.expandByPoint(bbox.min);
             acc.bbox.expandByPoint(bbox.max);
           }
-          if (!acc.elements[entity.layer]) {
-            acc.elements[entity.layer] = {};
-            acc.elements[entity.layer]['noBlock'] = [];
+        }
+        if (!acc.elements[entity.layer]) {
+          acc.elements[entity.layer] = {};
+          acc.elements[entity.layer]['noBlock'] = [];
+        }
+        if (entity.blockId) {
+          if (!acc.elements[entity.layer][entity.blockId]) {
+            acc.elements[entity.layer][entity.blockId] = [];
           }
-          if (entity.blockId) {
-            if (!acc.elements[entity.layer][entity.blockId]) {
-              acc.elements[entity.layer][entity.blockId] = [];
-            }
-            acc.elements[entity.layer][entity.blockId].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
-          } else {
-            acc.elements[entity.layer]['noBlock'].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
-          }
+          acc.elements[entity.layer][entity.blockId].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
+        } else {
+          acc.elements[entity.layer]['noBlock'].push(`<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`);
         }
       }
     }
