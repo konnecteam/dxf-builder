@@ -151,9 +151,19 @@ const arc = (entity, needFill = false) => {
 const text = (entity, rgb, styles) => {
   const rotationValue = entity.rotation ? -entity.rotation : 0; // on recupre la rotation
   const styleName = getStyle(entity, styles);
-  let element = `<g transform="rotate(${rotationValue}, ${entity.x}, ${-entity.y})" >`;
+  const matrices = computeMatrices(entity.transforms);
+
+  let element = '';
+  matrices.reverse();
+  matrices.forEach(([a, b, c, d, e, f]) => {
+    element += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})">`;
+  });
+  element += `<g transform="rotate(${rotationValue}, ${entity.x}, ${-entity.y})" >`;
   element += `<text x="${entity.x}" y="${-entity.y}" font-size="${entity.height}" font-family="${styleName}" fill="rgb(${rgb[0]},${rgb[1]},${rgb[2]})">${entity.textValue}</text>`;
   element += `</g>`;
+  matrices.forEach(transform => {
+    element += '</g>';
+  });
   return { bbox : new Box2(), element};
 };
 
@@ -162,25 +172,10 @@ const mtext = (entity, rgb, styles) => {
   const angleDegrees = angleRadian * 180 / Math.PI;
   const angleValue = isNaN(angleDegrees) ? 0 : -angleDegrees; // on recupere l'angle de rotation
   const lines = entity.string.split('\\P'); // on split le text en ligne
-  const matrices = entity.transforms.map(transform => {
-    // Create the transformation matrix
-    const tx = transform.x || 0;
-    const ty = transform.y || 0;
-    let e;
-    let f;
-    if (transform.extrusionZ === -1) {
-      e = -tx;
-      f = ty;
-    } else { // avec l'inverse du Y, il faut faire cette rotation pour être à l'endroit
-      e = tx;
-      f = -ty;
-    }
-    return [1, 0, 0, 1, e, f];
-  });
-
-  const styleName = getStyle(entity, styles); // on recupere la police
+  const matrices = computeMatrices(entity.transforms);
 
   let element = '';
+  const styleName = getStyle(entity, styles); // on recupere la police
   matrices.reverse();
   matrices.forEach(([a, b, c, d, e, f]) => {
     element += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})">`;
@@ -198,6 +193,40 @@ const mtext = (entity, rgb, styles) => {
   });
   return { bbox : new Box2(), element};
 };
+
+function computeMatrices(transforms : any[]) {
+  return transforms.map(transform => {
+    // Create the transformation matrix
+    const tx = transform.x || 0;
+    const ty = transform.y || 0;
+    const sx = transform.scaleX || 1;
+    const sy = transform.scaleY || 1;
+    const angle = (transform.rotation || 0) / 180 * Math.PI;
+    const { cos, sin } = Math;
+    let a;
+    let b;
+    let c;
+    let d;
+    let e;
+    let f;
+    if (transform.extrusionZ === -1) {
+      a = -sx * cos(angle);
+      b = sx * sin(angle);
+      c = sy * sin(angle);
+      d = sy * cos(angle);
+      e = -tx;
+      f = ty;
+    } else {
+      a = sx * cos(angle);
+      b = -sx * sin(angle);
+      c = sy * sin(angle);
+      d = sy * cos(angle);
+      e = tx;
+      f = -ty;
+    }
+    return [a, b, c, d, e, f];
+  });
+}
 
 function getStyle(entity, styles) : string {
   return styles[entity.styleName] ? styles[entity.styleName].fontFamily : 'ARIAL';
@@ -415,22 +444,22 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
       height: view.bbox.max.y - view.bbox.min.y
     };
   return `<?xml version="1.0"?>
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
-  viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}"
-  width="100%" height="100%"
->
-  <defs>
-    <style id="svgcss" />
-  </defs>
-  <g id="_kimplan_plan_">
-    <g stroke="#000000" stroke-width="0.1%">
-      ${_displayLayers(view.elements, ignoringLayers)}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
+    viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}"
+    width="100%" height="100%"
+  >
+    <defs>
+      <style id="svgcss" />
+    </defs>
+    <g id="_kimplan_plan_">
+      <g stroke="#000000" stroke-width="0.1%">
+        ${_displayLayers(view.elements, ignoringLayers)}
 
+      </g>
     </g>
-  </g>
 
-  <script type="text/ecmascript"><![CDATA[var jsonInfoPlan = ${_displayScript(parsed, groups, ignoringLayers)};]]></script>
-</svg>`;
+    <script type="text/ecmascript"><![CDATA[var jsonInfoPlan = ${_displayScript(parsed, groups, ignoringLayers)};]]></script>
+  </svg>`;
 };
