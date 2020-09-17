@@ -70,7 +70,7 @@ const circle = (entity, needFill = false) => {
  * Create a a <path d="A..." /> or <ellipse /> element for the ARC or ELLIPSE
  * DXF entity (<ellipse /> if start and end point are the same).
  */
-const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entityId, flipX = null, needFill = false ) => {
+const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entityId, entityType, flipX = null, needFill = false ) => {
   const bbox = [
     { x: rx, y: ry },
     { x: rx, y: ry },
@@ -85,14 +85,14 @@ const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entit
     return acc;
   }, new Box2());
   const id = parseInt(entityId, 16);
-  if ((Math.abs(startAngle - endAngle) < 1e-9) || (Math.abs(startAngle - endAngle + Math.PI * 2) < 1e-9)) {
-    // Use a native <ellipse> when start and end angles are the same, and
-    // arc paths with same start and end points don't render (at least on Safari)
-    const element = `<g id="${id}" ${!needFill ? fillNone : ''} transform="rotate(${rotationAngle / Math.PI * 180} ${cx}, ${-cy})">
+  if (entityType === 'ELLIPSE') {
+    //ellipse
+    const element = `<g id="${id}" ${!needFill ? fillNone : ''} transform="rotate(${rotationAngle / Math.PI * 180} ${cx} ${-cy})">
       <ellipse cx="${cx}" cy="${-cy}" rx="${rx}" ry="${ry}" />
     </g>`; // on inverse le Y ici
     return { bbox, element };
   } else {
+    // arc
     const startOffset = rotate({
       x: Math.cos(startAngle) * rx,
       y: Math.sin(startAngle) * -ry // on inverse le Y ici
@@ -127,7 +127,7 @@ const ellipse = (entity, needFill = false) => {
   const rx = Math.sqrt(entity.majorX * entity.majorX + entity.majorY * entity.majorY);
   const ry = entity.axisRatio * rx;
   const majorAxisRotation = -Math.atan2(-entity.majorY, entity.majorX);
-  const { bbox: bbox0, element: element0 } = ellipseOrArc(entity.x, entity.y, rx, ry, entity.startAngle, entity.endAngle, majorAxisRotation, entity.id, null, needFill);
+  const { bbox: bbox0, element: element0 } = ellipseOrArc(entity.x, entity.y, rx, ry, entity.startAngle, entity.endAngle, majorAxisRotation, entity.id, entity.type, null, needFill);
   const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: element0 });
   return transformBoundingBoxAndElement(bbox, element, entity.transforms);
 };
@@ -142,6 +142,7 @@ const arc = (entity, needFill = false) => {
     entity.startAngle, entity.endAngle,
     0,
     entity.id,
+    entity.type,
     entity.extrusionZ === -1,
     needFill);
   const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: element0 });
