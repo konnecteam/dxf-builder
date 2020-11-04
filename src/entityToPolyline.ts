@@ -24,29 +24,43 @@ const rotate = (points, angle) => {
  * @param rx radius X
  * @param ry radius Y
  * @param start start angle in radians
- * @param start end angle in radians
+ * @param end end angle in radians
+ * @param rotationAngle l'angle de rotation
+ * @param direction la direction à appliquer à l'ellipse
  */
-const interpolateEllipse = (cx, cy, rx, ry, start, end, rotationAngle = null) => {
-  if (end < start) {
-    end += Math.PI * 2;
-  }
-
+const interpolateEllipse = (cx, cy, rx, ry, start, end, rotationAngle = null, direction = 1) => {
   // ----- Relative points -----
 
   // Start point
   let points = [];
   const dTheta = Math.PI * 2 / 72;
   const EPS = 1e-6;
-  for (let theta = start; theta < end - EPS; theta += dTheta) {
+  if (direction === 1) {
+    if (end < start) {
+      end += Math.PI * 2;
+    }
+    for (let theta = start; theta < end - EPS; theta += dTheta) {
+      points.push([
+        Math.cos(theta) * rx,
+        Math.sin(theta) * ry,
+      ]);
+    }
     points.push([
-      Math.cos(theta) * rx,
-      Math.sin(theta) * ry,
+      Math.cos(end) * rx,
+      Math.sin(end) * ry,
+    ]);
+  } else {
+    for (let theta = start; theta < end - EPS; theta += dTheta) {
+      points.push([
+        Math.cos(-theta) * rx,
+        Math.sin(-theta) * ry,
+      ]);
+    }
+    points.push([
+      Math.cos(-end) * rx,
+      Math.sin(-end) * ry,
     ]);
   }
-  points.push([
-    Math.cos(end) * rx,
-    Math.sin(end) * ry,
-  ]);
 
   // ----- Rotate -----
   if (rotationAngle) {
@@ -54,11 +68,11 @@ const interpolateEllipse = (cx, cy, rx, ry, start, end, rotationAngle = null) =>
   }
 
   // ----- Offset center -----
-  points = points.map(function(p) {
+  const truePoints = points.map(function(p) {
     return [cx + p[0], cy + p[1]];
   });
 
-  return points;
+  return truePoints;
 };
 
 /**
@@ -126,8 +140,9 @@ export default (entity, options = null) => {
   if ((entity.type === 'LWPOLYLINE') || (entity.type === 'POLYLINE')) {
     polyline = [];
     if (entity.polygonMesh || entity.polyfaceMesh) {
-      // Do not attempt to render meshes
-    } else if (entity.vertices.length) {
+       // Do not attempt to render meshes
+    } else
+    if (entity.vertices?.length) {
       if (entity.closed) {
         entity.vertices = entity.vertices.concat(entity.vertices[0]);
       }
@@ -168,9 +183,10 @@ export default (entity, options = null) => {
     polyline = interpolateEllipse(
       entity.x, entity.y,
       rx, ry,
-      entity.startAngle,
-      entity.endAngle,
-      majorAxisRotation);
+      entity.startAngle * Math.PI / 180,
+      entity.endAngle * Math.PI / 180,
+      majorAxisRotation,
+      entity.isCounterclockwiseFlag);
     if (entity.extrusionZ === -1) {
       polyline = polyline.map(function(p) {
         return [-p[0], p[1]];
@@ -184,9 +200,11 @@ export default (entity, options = null) => {
     polyline = interpolateEllipse(
       entity.x, entity.y,
       entity.r, entity.r,
-      entity.startAngle,
-      entity.endAngle,
-      {});
+      entity.startAngle * Math.PI / 180,
+      entity.endAngle * Math.PI / 180,
+      null,
+      entity.isCounterclockwiseFlag
+      );
 
     // I kid you not, ARCs and ELLIPSEs handle this differently,
     // as evidenced by how AutoCAD actually renders these entities
