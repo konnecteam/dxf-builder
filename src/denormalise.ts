@@ -2,6 +2,41 @@ import { cloneDeep } from 'lodash';
 
 import logger from './util/logger';
 
+/**
+ * Fonction qui trie les entités données en focntion de leur table de tri
+ * @param entities les entités à trier
+ * @param sortTable les tables de tri
+ */
+export function sortEntities(entities : any[], sortTable : any[][]) : any[] {
+  if (entities && entities.length > 0 && entities[0].blockId) {
+    // Toutes les entités ont le même blockId, on le récupere pour pouvoir trouver la table qui correspond
+    const sortIndex = entities[0].blockId;
+    const currentSortTable = sortTable[sortIndex];
+    const allEntities = [];
+    // si on a pas de table de tri poour ces entités, elles sont dans le bon ordre
+    if (currentSortTable && currentSortTable.length > 0) {
+      const sortTableEntities = currentSortTable.map(e => e.entityId);
+      // on rrécupère les netités à trier de la liste
+      const entitiesToSort = entities.filter(e => sortTableEntities.includes(e.id));
+      //on leur ajoute leur valeur de tri
+      entitiesToSort.forEach(e => {
+        const sortValue = currentSortTable.filter(st => st.entityId === e.id)[0].sortValue;
+        e.sortValue = sortValue;
+      });
+      // on les trie par ordre croissant en fct de leur valuer de tri
+      const sortedEntities = entitiesToSort.sort((a, b) => parseFloat(a.sortValue) - parseFloat(b.sortValue));
+      // on les replace correctement dans le tableau de base
+      // => A partir de la premiere entité qui doit etre triée
+      const insertIndex = entities.findIndex(e => sortTableEntities.includes(e.id));
+      entities = entities.filter(e => !sortTableEntities.includes(e.id));
+      entities.splice(insertIndex, 0, ...sortedEntities);
+    }
+    return allEntities.concat(entities);
+  } else {
+    return entities;
+  }
+}
+
 export default parseResult => {
 
   const blocksByName = parseResult.blocks.reduce((acc, b) => {
@@ -41,7 +76,7 @@ export default parseResult => {
           be2.blockId = insert.blockId;
           return be2;
         });
-        current = current.concat(gatherEntities(blockEntities, transforms2));
+        current = current.concat(sortEntities(gatherEntities(blockEntities, transforms2), parseResult.sortTable));
       } else {
         // Top-level entity. Clone and add the transforms
         // The transforms are reversed so they occur in

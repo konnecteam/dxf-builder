@@ -3,6 +3,7 @@ import arc from './entity/arc';
 import attrib from './entity/attrib';
 import circle from './entity/circle';
 import ellipse from './entity/ellipse';
+import hatch from './entity/hatch';
 import insert from './entity/insert';
 import line from './entity/line';
 import lwpolyline from './entity/lwpolyline';
@@ -28,6 +29,7 @@ const handlers = [
   mtext,
   insert,
   attrib,
+  hatch,
   text,
 ].reduce((acc, mod) => {
   acc[mod.TYPE] = mod;
