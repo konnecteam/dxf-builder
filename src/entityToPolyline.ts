@@ -141,8 +141,7 @@ export default (entity, options = null) => {
     polyline = [];
     if (entity.polygonMesh || entity.polyfaceMesh) {
        // Do not attempt to render meshes
-    } else
-    if (entity.vertices?.length) {
+    } else if (entity && entity.vertices && entity.vertices.length > 0) {
       if (entity.closed) {
         entity.vertices = entity.vertices.concat(entity.vertices[0]);
       }
