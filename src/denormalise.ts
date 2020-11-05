@@ -3,42 +3,39 @@ import { cloneDeep } from 'lodash';
 import logger from './util/logger';
 
 /**
- * Fonction qui trie les entités données en focntion de leur table de tri
+ * Fonction qui trie les entités données en fonction de leur table de tri
  * @param entities les entités à trier
  * @param sortTable les tables de tri
  */
-export function sortEntities(entities : any[], sortTable : any[][]) : any[] {
+export function sortEntities(entities : any[], sortTable : any) : any[] {
   if (entities && entities.length > 0 && entities[0].blockId) {
     // Toutes les entités ont le même blockId, on le récupere pour pouvoir trouver la table qui correspond
     const sortIndex = entities[0].blockId;
-    const currentSortTable = sortTable[sortIndex];
-    const allEntities = [];
+    const currentSortTableHM = sortTable[sortIndex];
     // si on a pas de table de tri poour ces entités, elles sont dans le bon ordre
-    if (currentSortTable && currentSortTable.length > 0) {
-      const sortTableEntities = currentSortTable.map(e => e.entityId);
-      // on rrécupère les netités à trier de la liste
-      const entitiesToSort = entities.filter(e => sortTableEntities.includes(e.id));
-      //on leur ajoute leur valeur de tri
-      entitiesToSort.forEach(e => {
-        const sortValue = currentSortTable.filter(st => st.entityId === e.id)[0].sortValue;
-        e.sortValue = sortValue;
-      });
+    if (currentSortTableHM) {
+      const allEntities = [];
+      // on récupère les entités à trier de la liste
+      const entitiesToSort = entities.filter(e => e.id in currentSortTableHM);
       // on les trie par ordre croissant en fct de leur valuer de tri
-      const sortedEntities = entitiesToSort.sort((a, b) => parseFloat(a.sortValue) - parseFloat(b.sortValue));
+      const sortedEntities = entitiesToSort.sort((a, b) => parseFloat(currentSortTableHM[a.id].sortValue) - parseFloat(currentSortTableHM[b.id].sortValue));
       // on les replace correctement dans le tableau de base
       // => A partir de la premiere entité qui doit etre triée
-      const insertIndex = entities.findIndex(e => sortTableEntities.includes(e.id));
-      entities = entities.filter(e => !sortTableEntities.includes(e.id));
+      const insertIndex = entities.findIndex(e => currentSortTableHM[e.id]);
+      entities = entities.filter(e => !(e.id in currentSortTableHM));
       entities.splice(insertIndex, 0, ...sortedEntities);
+
+      return allEntities.concat(entities);
     }
-    return allEntities.concat(entities);
-  } else {
-    return entities;
   }
+
+  // Cas par défaut (si pas de tri)
+  return entities;
 }
 
 export default parseResult => {
 
+  // const sortTableHM = initSortTable(parseResult.sortTable);
   const blocksByName = parseResult.blocks.reduce((acc, b) => {
     acc[b.name] = b;
     return acc;

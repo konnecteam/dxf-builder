@@ -56,5 +56,17 @@ export default (tuples : any, records : any) => {
       trueSortTable[ref] = current.entityOrder;
     });
   }
-  return trueSortTable;
+
+  const sortTableHM = {};
+  const sortTableKeys = Object.keys(trueSortTable);
+  for (let i = 0; i < sortTableKeys.length; i++) {
+    const currentSortTable = trueSortTable[sortTableKeys[i]];
+    const currentSortTableHM = {};
+
+    currentSortTable.forEach(e => {
+      currentSortTableHM[e.entityId] = e;
+    });
+    sortTableHM[sortTableKeys[i]] = currentSortTableHM;
+  }
+  return sortTableHM;
 };
