@@ -1,9 +1,9 @@
-import { pd } from 'pretty-data';
 import { Box2 } from 'vecks';
 
 import denormalise from './denormalise';
 import entityToPolyline from './entityToPolyline';
 import getRGBForEntity from './getRGBForEntity';
+import hatchToSVG from './hatchToSVG';
 import parsedCustomAttribut from './parsedCustomAttribut';
 import transformBoundingBoxAndElement from './transformBoundingBoxAndElement';
 import logger from './util/logger';
@@ -13,7 +13,7 @@ import toPiecewiseBezier from './util/toPiecewiseBezier';
 
 const fillNone = 'fill="none"';
 
-const addFlipXIfApplicable = (entity, { bbox, element }) => {
+export const addFlipXIfApplicable = (entity, { bbox, element }) => {
   if (entity.extrusionZ === -1) {
     return {
       bbox: new Box2()
@@ -29,28 +29,36 @@ const addFlipXIfApplicable = (entity, { bbox, element }) => {
 };
 
 /**
- * Create a <path /> element. Interpolates curved entities.
+ * Fonction qui convertit une liste de vertices en valeur utilisable dans un attribut d d'un element html <path>
+ * @param vertices liste de vertices à convertir
  */
-const polyline = (entity, needFill = false) => {
-  const vertices = entityToPolyline(entity);
-  const bbox0 = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
-  const d = vertices.reduce((acc, point, i) => {
+export function convertVerticesToPath(vertices : number[][]) : string {
+  return vertices.reduce((acc, point, i) => {
     acc += (i === 0) ? 'M' : 'L';
     acc += point[0] + ',' + -point[1]; // on inverse Y ici
     return acc;
   }, '');
+}
+
+/**
+ * Create a <path /> element. Interpolates curved entities.
+ */
+export const polyline = (entity, needFill = false) => {
+  const vertices = entityToPolyline(entity);
+  const bbox0 = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
+  const d = convertVerticesToPath(vertices);
   // Empirically it appears that flipping horzontally does not apply to polyline
   // => si
   const id = parseInt(entity.id, 16);
   // const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: `<path ${entity.layer.toUpperCase() === 'LOCALISATION' ? 'id=' + '"' + id + '"' : ''} d="${d}" />` });
-  const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: `<path id="${id}" ${!needFill ? fillNone : ''} d="${d}" />` });
+  const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: `<path id="${id}" ${!needFill ? fillNone : ''} ${entity.sortValue ? 'sort=' + '"' + entity.sortValue + '"' : '' } d="${d}" />` });
   return transformBoundingBoxAndElement(bbox, element, entity.transforms);
 };
 
 /**
  * Create a <circle /> element for the CIRCLE entity.
  */
-const circle = (entity, needFill = false) => {
+export const circle = (entity, needFill = false) => {
   const bbox0 = new Box2()
     .expandByPoint({
       x: entity.x + entity.r,
@@ -61,7 +69,7 @@ const circle = (entity, needFill = false) => {
       y: entity.y - entity.r
     });
   const id = parseInt(entity.id, 16);
-  const element0 = `<circle id="${id}" cx="${entity.x}" cy="${-entity.y}" r="${entity.r}"/>`; // on inverse 'y' ici
+  const element0 = `<circle id="${id}" ${!needFill ? fillNone : ''} cx="${entity.x}" cy="${-entity.y}" r="${entity.r}"/>`; // on inverse 'y' ici
   const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: element0 });
   return transformBoundingBoxAndElement(bbox, element, entity.transforms);
 };
@@ -70,7 +78,7 @@ const circle = (entity, needFill = false) => {
  * Create a a <path d="A..." /> or <ellipse /> element for the ARC or ELLIPSE
  * DXF entity (<ellipse /> if start and end point are the same).
  */
-const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entityId, entityType, flipX = null, needFill = false ) => {
+export const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entityId, entityType, flipX = null, needFill = false ) => {
   const bbox = [
     { x: rx, y: ry },
     { x: rx, y: ry },
@@ -85,36 +93,39 @@ const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entit
     return acc;
   }, new Box2());
   const id = parseInt(entityId, 16);
-  if (entityType === 'ELLIPSE') {
+  if (entityType === 'ELLIPSE' && (Math.round((startAngle * 180 / Math.PI)) % 360 === Math.round((endAngle * 180 / Math.PI)) % 360)) { // si l'angle de départ et l'angle de fin ne sont pas les mêmes, c'est arc elliptique
     //ellipse
-    const element = `<g id="${id}" ${!needFill ? fillNone : ''} transform="rotate(${rotationAngle / Math.PI * 180} ${cx} ${-cy})">
-      <ellipse cx="${cx}" cy="${-cy}" rx="${rx}" ry="${ry}" />
-    </g>`; // on inverse le Y ici
+    const element = `<g id="${id}" ${!needFill ? fillNone : ''} transform="scale(1 -1) rotate(${rotationAngle / Math.PI * 180} ${cx} ${cy})">
+      <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" />
+    </g>`;
     return { bbox, element };
   } else {
-    // arc
+    const isEllipse = entityType === 'ELLIPSE';
+    // arc ou arc elliptique
     const startOffset = rotate({
       x: Math.cos(startAngle) * rx,
-      y: Math.sin(startAngle) * -ry // on inverse le Y ici
+      y: isEllipse ? flipX ? -Math.sin(startAngle) * ry : Math.sin(startAngle) * ry : Math.sin(startAngle) * -ry // on inverse le Y ici
     }, rotationAngle);
     const startPoint = {
       x: cx + startOffset.x,
-      y: cy - startOffset.y // on inverse le Y ici
+      y: isEllipse ? cy + startOffset.y : cy - startOffset.y // on inverse le Y ici
     };
     const endOffset = rotate({
       x: Math.cos(endAngle) * rx,
-      y: Math.sin(endAngle) * -ry // on inverse les Y ici
+      y: isEllipse ? flipX ? -Math.sin(endAngle) * ry : Math.sin(endAngle) * ry : Math.sin(endAngle) * -ry // on inverse les Y ici
     }, rotationAngle);
     const endPoint = {
       x: cx + endOffset.x,
-      y: cy - endOffset.y // on inverse les Y ici
+      y: isEllipse ? cy + endOffset.y : cy - endOffset.y // on inverse les Y ici
     };
     const adjustedEndAngle = endAngle < startAngle
       ? endAngle + Math.PI * 2
       : endAngle;
     const largeArcFlag = adjustedEndAngle - startAngle < Math.PI ? 0 : 1;
-    const d = `M ${startPoint.x} ${-startPoint.y} A ${rx} ${ry} ${rotationAngle / Math.PI * 180} ${largeArcFlag} 0 ${endPoint.x} ${-endPoint.y}`; // on inverse les Y ici
-    const element = `<path id="${id}" d="${d}" ${!needFill ? fillNone : ''}/>`;
+    const sweepFlag = flipX ? 1 : 0;
+    const d = `M ${isEllipse ? endPoint.x : startPoint.x} ${isEllipse ? endPoint.y : -startPoint.y} A ${rx} ${ry} ${rotationAngle / Math.PI * 180} ${largeArcFlag} ${sweepFlag} ${isEllipse ? startPoint.x : endPoint.x} ${isEllipse ? startPoint.y : -endPoint.y}`;
+    // on inverse les Y ici
+    const element = `<path ${isEllipse ? `transform="scale(1 -1)"` : ''} id="${id}" d="${d}" ${!needFill ? fillNone : ''}/>`;
     return { bbox, element };
   }
 };
@@ -123,19 +134,18 @@ const ellipseOrArc = (cx, cy, rx, ry, startAngle, endAngle, rotationAngle, entit
  * An ELLIPSE is defined by the major axis, convert to X and Y radius with
  * a rotation angle
  */
-const ellipse = (entity, needFill = false) => {
+export const ellipse = (entity, needFill = false) => {
   const rx = Math.sqrt(entity.majorX * entity.majorX + entity.majorY * entity.majorY);
   const ry = entity.axisRatio * rx;
   const majorAxisRotation = -Math.atan2(-entity.majorY, entity.majorX);
-  const { bbox: bbox0, element: element0 } = ellipseOrArc(entity.x, entity.y, rx, ry, entity.startAngle, entity.endAngle, majorAxisRotation, entity.id, entity.type, null, needFill);
-  const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: element0 });
-  return transformBoundingBoxAndElement(bbox, element, entity.transforms);
+  const { bbox: bbox0, element: element0 } = ellipseOrArc(entity.x, entity.y, rx, ry, entity.startAngle, entity.endAngle, majorAxisRotation, entity.id, entity.type, entity.extrusionZ === -1, needFill);
+  return transformBoundingBoxAndElement(bbox0, element0, entity.transforms);
 };
 
 /**
  * An ARC is an ellipse with equal radii
  */
-const arc = (entity, needFill = false) => {
+export const arc = (entity, needFill = false) => {
   const { bbox: bbox0, element: element0 } = ellipseOrArc(
     entity.x, entity.y,
     entity.r, entity.r,
@@ -145,13 +155,12 @@ const arc = (entity, needFill = false) => {
     entity.type,
     entity.extrusionZ === -1,
     needFill);
-  const { bbox, element } = addFlipXIfApplicable(entity, { bbox: bbox0, element: element0 });
-  return transformBoundingBoxAndElement(bbox, element, entity.transforms);
+  return transformBoundingBoxAndElement(bbox0, element0, entity.transforms);
 };
 
-const text = (entity, rgb, styles) => {
+export const text = (entity, rgb, styles) => {
   const rotationValue = entity.rotation ? -entity.rotation : 0; // on recupre la rotation
-  const styleName = getStyle(entity, styles);
+  const styleName = getStyle(entity.styleName, styles);
   const matrices = computeMatrices(entity.transforms);
 
   let element = '';
@@ -168,7 +177,7 @@ const text = (entity, rgb, styles) => {
   return { bbox : new Box2(), element};
 };
 
-const mtext = (entity, rgb, styles) => {
+export const mtext = (entity, rgb, styles) => {
   const angleRadian = (entity.xAxisY > 0) ? Math.acos(entity.xAxisX) : -Math.acos(entity.xAxisX);
   const angleDegrees = angleRadian * 180 / Math.PI;
   const angleValue = isNaN(angleDegrees) ? 0 : -angleDegrees; // on recupere l'angle de rotation
@@ -176,7 +185,7 @@ const mtext = (entity, rgb, styles) => {
   const matrices = computeMatrices(entity.transforms);
 
   let element = '';
-  const styleName = getStyle(entity, styles); // on recupere la police
+  const styleName = getStyle(entity.styleName, styles); // on recupere la police
   matrices.reverse();
   matrices.forEach(([a, b, c, d, e, f]) => {
     element += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})">`;
@@ -195,7 +204,7 @@ const mtext = (entity, rgb, styles) => {
   return { bbox : new Box2(), element};
 };
 
-function computeMatrices(transforms : any[]) {
+export function computeMatrices(transforms : any[]) {
   return transforms.map(transform => {
     // Create the transformation matrix
     const tx = transform.x || 0;
@@ -229,8 +238,8 @@ function computeMatrices(transforms : any[]) {
   });
 }
 
-function getStyle(entity, styles) : string {
-  return styles[entity.styleName] ? styles[entity.styleName].fontFamily : 'ARIAL';
+function getStyle(styleName, styles) : string {
+  return styles[styleName] ? styles[styleName].fontFamily : 'ARIAL';
 }
 
 export const piecewiseToPaths = (k, controlPoints) => {
@@ -292,6 +301,9 @@ const entityToBoundsAndElement = (entity, needFill = false, rgb?, styles?) => {
     case 'MTEXT' : {
       return mtext(entity, rgb, styles);
     }
+    case 'HATCH' : {
+      return hatchToSVG(entity, rgb);
+    }
     // case 'ATTRIB' : {
     //   return attrib(entity)
     // }
@@ -326,7 +338,7 @@ const _displayLayers = (elements, ignoringLayers : string[] = []) => {
 const _displayBlocks = elements => {
   const keys = Object.keys(elements);
   let returnValue = '';
-  keys.forEach(key => { //class="draggable" fill="transparent"
+  keys.forEach(key => {
     if ( key !== 'noBlock') {
       returnValue += `<g id="${key}">${elements[key].join(' ')}</g>`;
     } else {
@@ -392,6 +404,7 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
       }
     }
   }
+
   const view = entities.reduce((acc, entity, i) => {
     const rgb = getRGBForEntity(parsed.tables.layers, entity);
     const fill = shouldFillEntity(entity, listOfPolylines);
@@ -444,7 +457,7 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
       width: view.bbox.max.x - view.bbox.min.x,
       height: view.bbox.max.y - view.bbox.min.y
     };
-  return `<?xml version="1.0"?>
+  let svg = `<?xml version="1.0"?>
   <svg
     xmlns="http://www.w3.org/2000/svg"
     xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
@@ -463,4 +476,9 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
 
     <script type="text/ecmascript"><![CDATA[var jsonInfoPlan = ${_displayScript(parsed, groups, ignoringLayers)};]]></script>
   </svg>`;
+  // on rajoute dans les hatch le rectangle qui permet de voir les mask
+  const regexMask = /maskReplacement/gm;
+  const backgroundMask = `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="white"/>`;
+  svg = svg.replace(regexMask, backgroundMask);
+  return svg;
 };

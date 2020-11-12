@@ -1,6 +1,7 @@
 import blocksHandler from './handlers/blocks';
 import entitiesHandler from './handlers/entities';
 import headerHandler from './handlers/header';
+import objectsHandler from './handlers/objects';
 import tablesHandler from './handlers/tables';
 
 // Parse the value into the native representation
@@ -68,6 +69,9 @@ const reduceSection = (acc, section) => {
     case 'ENTITIES':
       acc.entities = entitiesHandler(contentTuples);
       break;
+    case 'OBJECTS': // pour les sortentstable
+      acc.sortTable = objectsHandler(contentTuples, acc.tables.records);
+      break;
     default:
   }
   return acc;
@@ -82,6 +86,7 @@ export default string => {
     header: {},
     blocks: [],
     entities: [],
+    sortTable: [],
     tables: { layers: {}, styles: {} }
   });
   return result;
