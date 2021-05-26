@@ -1,5 +1,5 @@
 import bSpline from './util/bSpline';
-import createArcForLWPolyine from './util/createArcForLWPolyline';
+import createArcForLWPolyline from './util/createArcForLWPolyline';
 import logger from './util/logger';
 
 /**
@@ -139,9 +139,7 @@ export default (entity, options = null) => {
 
   if ((entity.type === 'LWPOLYLINE') || (entity.type === 'POLYLINE')) {
     polyline = [];
-    if (entity.polygonMesh || entity.polyfaceMesh) {
-       // Do not attempt to render meshes
-    } else if (entity && entity.vertices && entity.vertices.length > 0) {
+    if (entity && entity.vertices && entity.vertices.length > 0) {
       if (entity.closed) {
         entity.vertices = entity.vertices.concat(entity.vertices[0]);
       }
@@ -151,7 +149,7 @@ export default (entity, options = null) => {
         polyline.push(from);
         if (entity.vertices[i].bulge) {
           polyline = polyline.concat(
-            createArcForLWPolyine(from, to, entity.vertices[i].bulge, null));
+            createArcForLWPolyline(from, to, entity.vertices[i].bulge, null));
         }
         // The last iteration of the for loop
         if (i === il - 2) {
