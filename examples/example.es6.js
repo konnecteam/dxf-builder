@@ -4,7 +4,7 @@ import { join } from 'path'
 import { Helper } from '../src'
 
 const helper = new Helper(fs.readFileSync(
-  'C:/dev/dxf/091228 AGEN LACOU-A-RC3.dxf', 'utf-8'))
+  './test/resources/Ceco.NET-Architecture-Tm-53.dxf', 'utf-8'))
 
 // The parsed entities
 const { blocks, entities } = helper.parsed
@@ -25,5 +25,5 @@ console.log('\n')
 
 // Write the SVG
 const svg = helper.toSVG()
-fs.writeFileSync(join(__dirname, '/example.es63.svg'), svg, 'utf-8')
+fs.writeFileSync(join(__dirname, '/example.es6.svg'), svg, 'utf-8')
 console.log('SVG written')

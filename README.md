@@ -4,7 +4,7 @@
 
 DXF parser for node/browser.
 
-Uses several ES6 features in the source code (import, classes, let, const, arrows) but is packaged using babel so you can use it legacy JS environments.
+Uses several ES6 features in the source code (import, classes, let, const, arrows) but is packaged using babel so you can use it in legacy JS environments.
 
 Version 2.0 is a complete rewrite from the first attempt to write it in a SAX style, which wasn't really appropriate for a document with nested references (e.g inserts referencing blocks, nested inserts).
 
@@ -123,3 +123,4 @@ will execute the unit tests.
 - Erik Söhnel https://github.com/hoeck
 - Teja https://github.com/hungerpirat
 - Jakob Pallhuber https://github.com/Joge97
+- Eric Mansfield https://github.com/ericman314
