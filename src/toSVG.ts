@@ -5,11 +5,11 @@ import entityToPolyline from './entityToPolyline';
 import getRGBForEntity from './getRGBForEntity';
 import hatchToSVG from './hatchToSVG';
 import parsedCustomAttribut from './parsedCustomAttribut';
-import transformBoundingBoxAndElement from './transformBoundingBoxAndElement';
 import logger from './util/logger';
 import rgbToColorAttribute from './util/rgbToColorAttribute';
 import rotate from './util/rotate';
-import toPiecewiseBezier from './util/toPiecewiseBezier';
+import toPiecewiseBezier, { multiplicity } from './util/toPiecewiseBezier';
+import transformBoundingBoxAndElement from './util/transformBoundingBoxAndElement';
 
 const fillNone = 'fill="none"';
 
@@ -242,16 +242,20 @@ function getStyle(styleName, styles) : string {
   return styles[styleName] ? styles[styleName].fontFamily : 'ARIAL';
 }
 
-export const piecewiseToPaths = (k, controlPoints) => {
-  const nSegments = (controlPoints.length - 1) / (k - 1);
+export const piecewiseToPaths = (k, knots, controlPoints) => {
   const paths = [];
-  for (let i = 0; i < nSegments; ++i) {
-    const cp = controlPoints.slice(i * (k - 1));
+  let controlPointIndex = 0;
+  let knotIndex = k;
+  while (knotIndex < knots.length - k + 1) {
+    const m = multiplicity(knots, knotIndex);
+    const cp = controlPoints.slice(controlPointIndex, controlPointIndex + k);
     if (k === 4) {
       paths.push(`<path d="M ${cp[0].x} ${-cp[0].y} C ${cp[1].x} ${-cp[1].y} ${cp[2].x} ${-cp[2].y} ${cp[3].x} ${-cp[3].y}" />`); // on inverse les Y ici
     } else if (k === 3) {
       paths.push(`<path d="M ${cp[0].x} ${-cp[0].y} Q ${cp[1].x} ${-cp[1].y} ${cp[2].x} ${-cp[2].y}" />`); // on inverse les Y ici
     }
+    controlPointIndex += m;
+    knotIndex += m;
   }
   return paths;
 };
@@ -263,50 +267,189 @@ const bezier = (entity, needFill = false) => {
   });
   const k = entity.degree + 1;
   const piecewise = toPiecewiseBezier(k, entity.controlPoints, entity.knots);
-  const paths = piecewiseToPaths(k, piecewise.controlPoints);
+  const paths = piecewiseToPaths(k, piecewise.knots, piecewise.controlPoints);
   const element = `<g ${!needFill ? fillNone : ''}>${paths.join('')}</g>`;
   return transformBoundingBoxAndElement(bbox, element, entity.transforms);
 };
 
 /**
+ * Dessine l'entité dimension
+ * @param entity l'entié dimension
+ * @param textSize taille du texte
+ */
+function dimension(entity, textSize : string) {
+  let vertices = [];
+  let bbox = new Box2();
+  let path = '';
+  if (entity.dimensionType === 0) { // => 0 = Rotated, horizontal, or vertical;
+    const translationVector = {
+      x : entity.textMidpoint.x - entity.start.x,
+      y : entity.textMidpoint.y - entity.start.y
+    };
+    vertices = [
+      [entity.start.x, entity.start.y],
+      [entity.textMidpoint.x + translationVector.x, entity.textMidpoint.y + translationVector.y],
+    ];
+    path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
+    bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
+  } else if (entity.dimensionType === 1) { // => 1 = Aligned
+    const midPoint = {
+      x : (entity.measureStart.x + entity.measureEnd.x) / 2,
+      y : (entity.measureStart.y + entity.measureEnd.y) / 2,
+    };
+    const translationVector = {
+      x : entity.textMidpoint.x - midPoint.x,
+      y : entity.textMidpoint.y - midPoint.y
+    };
+    // on applique la translation sur les points
+    vertices = [
+      [entity.measureStart.x + translationVector.x, entity.measureStart.y + translationVector.y],
+      [entity.measureEnd.x + translationVector.x, entity.measureEnd.y + translationVector.y],
+    ];
+    path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
+    bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
+  } else if (entity.dimensionType === 2) { // 2 = Angular
+    // on affiche l'angle en degrés
+    entity.actualMeasurement = entity.actualMeasurement * 180 / Math.PI;
+
+    const radius = Math.hypot(entity.dimensionArc.x - entity.start.x, entity.dimensionArc.y - entity.start.y);
+
+    // on trouve les points d'intersection entre les segments et l'arc
+    const firstIntersectionPoint = segmentAndCircleIntersection(entity.measureStart, entity.measureEnd, entity.measureStart, radius);
+    const secondIntersectionPoint = segmentAndCircleIntersection(entity.start, entity.firstPointOnArc, entity.start, radius);
+
+    // on trouve dans quel sens dessiner l'arc
+    let sweepFlag = 0;
+    if ((entity.measureEnd.x <= entity.start.x && entity.firstPointOnArc.x <= entity.start.x) ||
+      (entity.measureEnd.y <= entity.start.y && entity.firstPointOnArc.y <= entity.start.y)) {
+      sweepFlag = 0;
+    } else {
+      sweepFlag = 1;
+    }
+    path = `<path d="M ${secondIntersectionPoint.intersect2.x} ${secondIntersectionPoint.intersect2.y} A ${radius}, ${radius}, ${entity.actualMeasurement} 0 ${sweepFlag} ${firstIntersectionPoint.intersect2.x} ${firstIntersectionPoint.intersect2.y}"/>`;
+
+  } else if (entity.dimensionType === 3 || entity.dimensionType === 4) { // 3 = Diameter, 4 = Radius
+    vertices = [
+      [entity.start.x, entity.start.y],
+      [entity.firstPointOnArc.x, entity.firstPointOnArc.y],
+    ];
+    path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
+    bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
+  } else {
+    return {element : '', bbox : new Box2()};
+  }
+
+  const id = parseInt(entity.id, 16);
+
+  let element = `<g id=${id} type="dimension" ${fillNone}>`;
+  element += `<text x="${entity.textMidpoint.x}" y="${-entity.textMidpoint.y + (parseFloat(textSize) / 2)}" font-size="${textSize}">${Math.round(entity.actualMeasurement * 100) / 100}</text>`;
+  element += path;
+  element += `</g>`;
+  return {element, bbox};
+}
+
+/**
+ * retourne les points d'intersection entre le cercle défini par son rayon radius etson centre cneterPoint et le segment [pointA, pointB]
+ * @param pointA 1er point du segment
+ * @param pointB 2nd point du segment
+ * @param centerPoint le centre du cercle
+ * @param radius le rayon du cercle
+ */
+function segmentAndCircleIntersection(pointA : {x : number, y : number},
+  pointB : {x : number, y : number},
+  centerPoint : {x : number, y : number},
+  radius : number)
+  : {intersect1 : {x : number, y : number}, intersect2 : {x : number, y : number}} {
+  const ax = pointA.x;
+  const ay = -pointA.y;
+  const bx = pointB.x;
+  const by = -pointB.y;
+  const cx = centerPoint.x;
+  const cy = -centerPoint.y;
+  // compute the euclidean distance between A and B
+  const distAB = Math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+
+  // compute the direction vector D from A to B
+  const dx = (bx - ax) / distAB;
+  const dy = (by - ay) / distAB;
+
+  // Now the line equation is x = Dx*t + Ax, y = Dy*t + Ay with 0 <= t <= 1.
+
+  // compute the value t of the closest point to the circle center (Cx, Cy)
+  const t = dx * (cx - ax) + dy * (cy - ay);
+
+  // This is the projection of C on the line from A to B.
+
+  // compute the coordinates of the point E on line and closest to C
+  const Ex = t * dx + ax;
+  const Ey = t * dy + ay;
+
+  // compute the euclidean distance from E to C
+  const distEC = Math.sqrt((Ex - cx) * (Ex - cx) + (Ey - cy) * (Ey - cy));
+
+  // test if the line intersects the circle
+  if ( distEC < radius ) {
+      // compute distance from t to circle intersection point
+    const dt = Math.sqrt((radius * radius) - distEC * distEC);
+
+    // compute first intersection point
+    const intersect1 = {
+      x : (t - dt ) * dx + ax,
+      y : (t - dt) * dy + ay,
+    };
+
+    // compute second intersection point
+    const intersect2 = {
+      x : (t + dt) * dx + ax,
+      y : (t + dt) * dy + ay
+    };
+    return {intersect1, intersect2};
+  } else {
+    return null;
+  }
+}
+
+/**
  * Switch the appropriate function on entity type. CIRCLE, ARC and ELLIPSE
  * produce native SVG elements, the rest produce interpolated polylines.
  */
-const entityToBoundsAndElement = (entity, needFill = false, rgb?, styles?) => {
+// const entityToBoundsAndElement = (entity, needFill = false, rgb?, styles?) => {
+const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : number[], styles? : any, defaultTextSize? : string} = {needFill : false}) => {
   switch (entity.type) {
     case 'CIRCLE':
-      return circle(entity, needFill);
+      return circle(entity, options.needFill);
     case 'ELLIPSE':
-      return ellipse(entity, needFill);
+      return ellipse(entity, options.needFill);
     case 'ARC':
-      return arc(entity, needFill);
+      return arc(entity, options.needFill);
     case 'SPLINE': {
-      if ((entity.degree === 2) || (entity.degree === 3)) {
+      const hasWeights = entity.weights && entity.weights.some(w => w !== 1);
+      if (((entity.degree === 2) || (entity.degree === 3)) && !hasWeights) {
         try {
-          return bezier(entity, needFill);
+          return bezier(entity, options.needFill);
         } catch (err) {
-          return polyline(entity, needFill);
+          return polyline(entity, options.needFill);
         }
       } else {
-        return polyline(entity, needFill);
+        return polyline(entity, options.needFill);
       }
     }
     case 'LINE':
     case 'LWPOLYLINE':
     case 'POLYLINE': {
-      return polyline(entity, needFill);
+      return polyline(entity, options.needFill);
     }
     case 'TEXT':
-      return text(entity, rgb, styles);
+      return text(entity, options.rgb, options.styles);
     case 'MTEXT' : {
-      return mtext(entity, rgb, styles);
+      return mtext(entity, options.rgb, options.styles);
     }
     case 'HATCH' : {
-      return hatchToSVG(entity, rgb);
+      return hatchToSVG(entity, options.rgb);
     }
-    // case 'ATTRIB' : {
-    //   return attrib(entity)
-    // }
+    case 'DIMENSION' : {
+      return dimension(entity, options.defaultTextSize);
+    }
     default:
       logger.warn();
       return null;
@@ -409,9 +552,16 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
     const rgb = getRGBForEntity(parsed.tables.layers, entity);
     const fill = shouldFillEntity(entity, listOfPolylines);
     const isText = entity.type === 'MTEXT' || entity.type === 'TEXT';
+    const options = {
+      needFill : fill,
+      rgb,
+      styles : parsed.tables.styles,
+      defaultTextSize : parsed.header.textSize
+    };
     // on check si ce n'est pas le text du bloc de localisation
     if (!isText || !localisationsId.includes(entity.blockId)) {
-      const boundsAndElement = entityToBoundsAndElement(entity, fill, rgb, parsed.tables.styles);
+      // const boundsAndElement = entityToBoundsAndElement(entity, fill, rgb, parsed.tables.styles);
+      const boundsAndElement = entityToBoundsAndElement(entity, options);
       if (boundsAndElement && boundsAndElement.bbox && boundsAndElement.bbox.min && boundsAndElement.bbox.max
         && (!isNaN(boundsAndElement.bbox.min.x)) && (!isNaN(boundsAndElement.bbox.min.y))
         && (!isNaN(boundsAndElement.bbox.max.x)) && (!isNaN(boundsAndElement.bbox.max.y))) {
