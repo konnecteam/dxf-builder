@@ -29,7 +29,7 @@ export default class Helper {
     return this._parsed;
   }
 
-  get parsed() {
+  public get parsed() {
     if (this._parsed === null) {
       this.parse();
     }
@@ -41,7 +41,7 @@ export default class Helper {
     return this._denormalised;
   }
 
-  get denormalised() {
+  public get denormalised() {
     if (!this._denormalised) {
       this.denormalise();
     }
@@ -52,7 +52,7 @@ export default class Helper {
     this._groups = groupEntitiesByLayer(this.denormalised);
   }
 
-  get groups() {
+  public get groups() {
     if (!this._groups) {
       this.group();
     }
@@ -79,21 +79,21 @@ export default class Helper {
     this._blockEntities = this._customAttributs.blockEntities;
   }
 
-  get customAttributs() {
+  public get customAttributs() {
     if (!this._customAttributs) {
       this.customAttribut();
     }
     return this._customAttributs;
   }
 
-  get localisations() {
+  public get localisations() {
     if (!this._customAttributs) {
       this.customAttribut();
     }
     return this._localisations;
   }
 
-  get blockEntities() {
+  public get blockEntities() {
     if (!this._customAttributs) {
       this.customAttribut();
     }

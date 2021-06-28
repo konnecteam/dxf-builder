@@ -27,6 +27,8 @@ describe('header', () => {
       latitude: 1,
       longitude: 1,
       name: '',
+      textSize: 2.5,
+      dimArrowSize: 2.5,
       title: '',
       tracewid: 15.68,
       updateDate: '',

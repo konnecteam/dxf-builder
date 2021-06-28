@@ -2,6 +2,7 @@ import logger from '../util/logger';
 import arc from './entity/arc';
 import attrib from './entity/attrib';
 import circle from './entity/circle';
+import dimension from './entity/dimension';
 import ellipse from './entity/ellipse';
 import hatch from './entity/hatch';
 import insert from './entity/insert';
@@ -13,6 +14,7 @@ import polyline from './entity/polyline';
 import solid from './entity/solid';
 import spline from './entity/spline';
 import text from './entity/text';
+import threeDFace from './entity/threeDFace';
 import vertex from './entity/vertex';
 
 const handlers = [
@@ -31,6 +33,8 @@ const handlers = [
   attrib,
   hatch,
   text,
+  dimension,
+  threeDFace,
 ].reduce((acc, mod) => {
   acc[mod.TYPE] = mod;
   return acc;

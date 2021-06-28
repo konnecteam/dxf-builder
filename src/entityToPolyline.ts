@@ -86,7 +86,7 @@ const interpolateEllipse = (cx, cy, rx, ry, start, end, rotationAngle = null, di
  * @param knots the knot vector
  * @returns the polyline
  */
-export const interpolateBSpline = (controlPoints, degree, knots, interpolationsPerSplineSegment) => {
+export const interpolateBSpline = (controlPoints, degree, knots, interpolationsPerSplineSegment, weights) => {
   const polyline = [];
   const controlPointsForLib = controlPoints.map(function(p) {
     return [p.x, p.y];
@@ -107,8 +107,11 @@ export const interpolateBSpline = (controlPoints, degree, knots, interpolationsP
     const uMax = segmentTs[i];
     for (let k = 0; k <= interpolationsPerSplineSegment; ++k) {
       const u = k / interpolationsPerSplineSegment * (uMax - uMin) + uMin;
-      const t = (u - domain[0]) / (domain[1] - domain[0]);
-      const p = bSpline(t, degree, controlPointsForLib, knots, null);
+      // Clamp t to 0, 1 to handle numerical precision issues
+      let t = (u - domain[0]) / (domain[1] - domain[0]);
+      t = Math.max(t, 0);
+      t = Math.min(t, 1);
+      const p = bSpline(t, degree, controlPointsForLib, knots, weights);
       polyline.push(p);
     }
   }
@@ -217,7 +220,8 @@ export default (entity, options = null) => {
       entity.controlPoints,
       entity.degree,
       entity.knots,
-      options.interpolationsPerSplineSegment);
+      options.interpolationsPerSplineSegment,
+      entity.weights);
   }
 
   if (!polyline) {
