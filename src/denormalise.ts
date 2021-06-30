@@ -51,11 +51,11 @@ export default parseResult => {
           logger.error();
           return;
         }
-        const rowCount = insert.rowCount ?? 1;
-        const columnCount = insert.columnCount ?? 1;
-        const rowSpacing = insert.rowSpacing ?? 0;
-        const columnSpacing = insert.columnSpacing ?? 0;
-        const rotation = insert.rotation ?? 0;
+        const rowCount = insert.rowCount || 1;
+        const columnCount = insert.columnCount || 1;
+        const rowSpacing = insert.rowSpacing || 0;
+        const columnSpacing = insert.columnSpacing || 0;
+        const rotation = insert.rotation || 0;
 
         // It appears that the rectangular array is affected by rotation, but NOT by scale.
         let rowVec;
