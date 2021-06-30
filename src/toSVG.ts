@@ -275,9 +275,9 @@ const bezier = (entity, needFill = false) => {
 /**
  * Dessine l'entité dimension
  * @param entity l'entié dimension
- * @param textSize taille du texte
+ * @param dimTextHeight taille du texte
  */
-function dimension(entity, textSize : string) {
+function dimension(entity, dimTextHeight : string, dimArrowSize : string) {
   let vertices = [];
   let bbox = new Box2();
   let path = '';
@@ -286,9 +286,15 @@ function dimension(entity, textSize : string) {
       x : entity.textMidpoint.x - entity.start.x,
       y : entity.textMidpoint.y - entity.start.y
     };
+    const point1 = {x : entity.start.x , y : -entity.start.y};
+    const point2 = {x : entity.textMidpoint.x + translationVector.x, y : -(entity.textMidpoint.y + translationVector.y)};
+    const extrem1 = dimensionDelimiterPoints(point1, point2, dimArrowSize);
+    const extrem2 = dimensionDelimiterPoints(point2, point1, dimArrowSize);
     vertices = [
+      [extrem1.intersect1.x, extrem1.intersect1.y], [extrem1.intersect2.x, extrem1.intersect2.y],
       [entity.start.x, entity.start.y],
       [entity.textMidpoint.x + translationVector.x, entity.textMidpoint.y + translationVector.y],
+      [extrem2.intersect1.x, extrem2.intersect1.y], [extrem2.intersect2.x, extrem2.intersect2.y],
     ];
     path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
     bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
@@ -301,10 +307,18 @@ function dimension(entity, textSize : string) {
       x : entity.textMidpoint.x - midPoint.x,
       y : entity.textMidpoint.y - midPoint.y
     };
+    const point1 = {x : entity.measureStart.x + translationVector.x, y : -(entity.measureStart.y + translationVector.y)};
+    const point2 = {x : entity.measureEnd.x + translationVector.x, y : -(entity.measureEnd.y + translationVector.y)};
+
+    const extrem1 = dimensionDelimiterPoints(point1, point2, dimArrowSize);
+    const extrem2 = dimensionDelimiterPoints(point2, point1, dimArrowSize);
+
     // on applique la translation sur les points
     vertices = [
+      [extrem1.intersect1.x, extrem1.intersect1.y], [extrem1.intersect2.x, extrem1.intersect2.y],
       [entity.measureStart.x + translationVector.x, entity.measureStart.y + translationVector.y],
       [entity.measureEnd.x + translationVector.x, entity.measureEnd.y + translationVector.y],
+      [extrem2.intersect1.x, extrem2.intersect1.y], [extrem2.intersect2.x, extrem2.intersect2.y],
     ];
     path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
     bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
@@ -342,10 +356,34 @@ function dimension(entity, textSize : string) {
   const id = parseInt(entity.id, 16);
 
   let element = `<g id=${id} type="dimension" ${fillNone}>`;
-  element += `<text x="${entity.textMidpoint.x}" y="${-entity.textMidpoint.y + (parseFloat(textSize) / 2)}" font-size="${textSize}">${Math.round(entity.actualMeasurement * 100) / 100}</text>`;
+  element += `<text x="${entity.textMidpoint.x}" y="${-entity.textMidpoint.y + (parseFloat(dimTextHeight) / 2)}" font-size="${dimTextHeight}">${Math.round(entity.actualMeasurement * 100) / 100}</text>`;
   element += path;
   element += `</g>`;
   return {element, bbox};
+}
+
+/**
+ * Définit les délimiteurs des segments de dimensions
+ * @param point1 1ere extremité du segment
+ * @param point2 2nd extrémité du segment
+ * @param dimArrowSize taille des délimiteurs
+ */
+function dimensionDelimiterPoints(point1 : {x : number, y : number}, point2 : {x : number, y : number}, dimArrowSize : string) {
+  //coordonnées de la droite d'origine [point1, point2] => y = slope * x + gap
+  const slope = (point2.y - point1.y) / (point2.x - point1.x);
+  const gap = -(slope * point1.x) + point1.y;
+  //coordonnées de la droite perpendiculaire => y = -1/slope + gapOrth
+  const slopeOrth = -1 / slope;
+  const gapOrthPoint1 = -(slopeOrth * point1.x) + point1.y;
+  // on trouve un point random sur la droite perpendiculaire
+  let rdmPoint1 : {x : number, y : number} = null;
+  if (slopeOrth !== Infinity && slopeOrth !== -Infinity) {
+    rdmPoint1 = {x : 0, y : gapOrthPoint1};
+  } else {
+    rdmPoint1 = {x : point1.x, y : 0 };
+  }
+  // on retourne les intersections entre la droite perpendiculaire et le cercle de centre point1 et de rayon dimArrowSize
+  return segmentAndCircleIntersection(point1, rdmPoint1, point1, parseFloat(dimArrowSize));
 }
 
 /**
@@ -381,11 +419,11 @@ function segmentAndCircleIntersection(pointA : {x : number, y : number},
   // This is the projection of C on the line from A to B.
 
   // compute the coordinates of the point E on line and closest to C
-  const Ex = t * dx + ax;
-  const Ey = t * dy + ay;
+  const ex = t * dx + ax;
+  const ey = t * dy + ay;
 
   // compute the euclidean distance from E to C
-  const distEC = Math.sqrt((Ex - cx) * (Ex - cx) + (Ey - cy) * (Ey - cy));
+  const distEC = Math.sqrt((ex - cx) * (ex - cx) + (ey - cy) * (ey - cy));
 
   // test if the line intersects the circle
   if ( distEC < radius ) {
@@ -413,8 +451,7 @@ function segmentAndCircleIntersection(pointA : {x : number, y : number},
  * Switch the appropriate function on entity type. CIRCLE, ARC and ELLIPSE
  * produce native SVG elements, the rest produce interpolated polylines.
  */
-// const entityToBoundsAndElement = (entity, needFill = false, rgb?, styles?) => {
-const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : number[], styles? : any, defaultTextSize? : string} = {needFill : false}) => {
+const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : number[], styles? : any, dimTextHeight? : string, dimArrowSize? : string} = {needFill : false}) => {
   switch (entity.type) {
     case 'CIRCLE':
       return circle(entity, options.needFill);
@@ -448,7 +485,7 @@ const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : 
       return hatchToSVG(entity, options.rgb);
     }
     case 'DIMENSION' : {
-      return dimension(entity, options.defaultTextSize);
+      return dimension(entity, options.dimTextHeight, options.dimArrowSize);
     }
     default:
       logger.warn();
@@ -556,7 +593,8 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
       needFill : fill,
       rgb,
       styles : parsed.tables.styles,
-      defaultTextSize : parsed.header.textSize
+      dimTextHeight : parsed.header.dimTextHeight,
+      dimArrowSize : parsed.header.dimArrowSize,
     };
     // on check si ce n'est pas le text du bloc de localisation
     if (!isText || !localisationsId.includes(entity.blockId)) {
