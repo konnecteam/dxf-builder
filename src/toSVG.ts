@@ -277,10 +277,11 @@ const bezier = (entity, needFill = false) => {
  * @param entity l'entié dimension
  * @param dimTextHeight taille du texte
  */
-function dimension(entity, dimTextHeight : string, dimArrowSize : string) {
+function dimension(entity, dimTextHeight : string, dimArrowSize : string, drawingUnit : string, dimAngleUnit : string) {
   let vertices = [];
   let bbox = new Box2();
   let path = '';
+  let displayValue : string = null;
   if (entity.dimensionType === 0) { // => 0 = Rotated, horizontal, or vertical;
     const translationVector = {
       x : entity.textMidpoint.x - entity.start.x,
@@ -296,6 +297,7 @@ function dimension(entity, dimTextHeight : string, dimArrowSize : string) {
       [entity.textMidpoint.x + translationVector.x, entity.textMidpoint.y + translationVector.y],
       [extrem2.intersect1.x, extrem2.intersect1.y], [extrem2.intersect2.x, extrem2.intersect2.y],
     ];
+    displayValue = `${Math.round(entity.actualMeasurement * 100) / 100}${drawingUnit}`;
     path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
     bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
   } else if (entity.dimensionType === 1) { // => 1 = Aligned
@@ -320,11 +322,13 @@ function dimension(entity, dimTextHeight : string, dimArrowSize : string) {
       [entity.measureEnd.x + translationVector.x, entity.measureEnd.y + translationVector.y],
       [extrem2.intersect1.x, extrem2.intersect1.y], [extrem2.intersect2.x, extrem2.intersect2.y],
     ];
+
+    displayValue = `${Math.round(entity.actualMeasurement * 100) / 100}${drawingUnit}`;
     path = `<path d="${convertVerticesToPath(vertices)}"></path>`;
     bbox = vertices.reduce((acc, [x, y]) => acc.expandByPoint({ x, y }), new Box2());
   } else if (entity.dimensionType === 2) { // 2 = Angular
     // on affiche l'angle en degrés
-    entity.actualMeasurement = entity.actualMeasurement * 180 / Math.PI;
+    displayValue = computeDimAngleValue(parseFloat(entity.actualMeasurement), parseInt(dimAngleUnit, 10));
 
     const radius = Math.hypot(entity.dimensionArc.x - entity.start.x, entity.dimensionArc.y - entity.start.y);
 
@@ -342,7 +346,9 @@ function dimension(entity, dimTextHeight : string, dimArrowSize : string) {
     }
     path = `<path d="M ${secondIntersectionPoint.intersect2.x} ${secondIntersectionPoint.intersect2.y} A ${radius}, ${radius}, ${entity.actualMeasurement} 0 ${sweepFlag} ${firstIntersectionPoint.intersect2.x} ${firstIntersectionPoint.intersect2.y}"/>`;
 
-  } else if (entity.dimensionType === 3 || entity.dimensionType === 4) { // 3 = Diameter, 4 = Radius
+  } else if (entity.dimensionType === 3 || entity.dimensionType === 4) { // 3 = Diameter Ø, 4 = Radius R
+    const indicator = entity.dimensionType === 3 ? 'Ø' : 'R';
+    displayValue = `${indicator}${Math.round(entity.actualMeasurement * 100) / 100}${drawingUnit}`;
     vertices = [
       [entity.start.x, entity.start.y],
       [entity.firstPointOnArc.x, entity.firstPointOnArc.y],
@@ -356,7 +362,7 @@ function dimension(entity, dimTextHeight : string, dimArrowSize : string) {
   const id = parseInt(entity.id, 16);
 
   let element = `<g id=${id} type="dimension" ${fillNone}>`;
-  element += `<text x="${entity.textMidpoint.x}" y="${-entity.textMidpoint.y + (parseFloat(dimTextHeight) / 2)}" font-size="${dimTextHeight}">${Math.round(entity.actualMeasurement * 100) / 100}</text>`;
+  element += `<text x="${entity.textMidpoint.x}" y="${-entity.textMidpoint.y + (parseFloat(dimTextHeight) / 2)}" font-size="${dimTextHeight}">${displayValue}</text>`;
   element += path;
   element += `</g>`;
   return {element, bbox};
@@ -448,10 +454,35 @@ function segmentAndCircleIntersection(pointA : {x : number, y : number},
 }
 
 /**
+ * Calcule l'angle dans la bonne unité
+ * @param measurement mesure de l'angle
+ * @param dimAngleUnit l'unité dans laquelle le transformer : 0 = Degrees; 1 = Degrees/minutes/seconds; 2 = Gradians; 3 = Radians
+ */
+function computeDimAngleValue(measurement : number, dimAngleUnit : number) : string {
+  // 0 = Decimal degrees
+  if (dimAngleUnit === 0) {
+    return `${Math.round((measurement * 180 / Math.PI) * 100) / 100}°`;
+  } else if (dimAngleUnit === 1) {
+    // 1 = Degrees/minutes/seconds;
+    const fullDegrees = measurement * 180 / Math.PI;
+    const degrees = Math.floor(fullDegrees);
+    const fullMinutes = (fullDegrees % 1) * 60;
+    const minutes = Math.floor(fullMinutes);
+    const seconds = Math.floor((fullMinutes % 1) * 60);
+    return `${degrees}° ${minutes}' ${seconds}"`;
+  } else if (dimAngleUnit === 2) {
+    // 2 = Gradians, g = radian * 200/Pi
+    return `${Math.round((measurement * 200 / Math.PI) * 100) / 100}g`;
+  } else { // 3 = Radians; par default, measurement est en radian
+    return `${Math.round(measurement * 100) / 100}rad`;
+  }
+}
+
+/**
  * Switch the appropriate function on entity type. CIRCLE, ARC and ELLIPSE
  * produce native SVG elements, the rest produce interpolated polylines.
  */
-const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : number[], styles? : any, dimTextHeight? : string, dimArrowSize? : string} = {needFill : false}) => {
+const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : number[], styles? : any, dimTextHeight? : string, dimArrowSize? : string, drawingUnit? : string, dimAngleUnit? : string} = {needFill : false}) => {
   switch (entity.type) {
     case 'CIRCLE':
       return circle(entity, options.needFill);
@@ -485,7 +516,7 @@ const entityToBoundsAndElement = (entity, options : {needFill : boolean, rgb? : 
       return hatchToSVG(entity, options.rgb);
     }
     case 'DIMENSION' : {
-      return dimension(entity, options.dimTextHeight, options.dimArrowSize);
+      return dimension(entity, options.dimTextHeight, options.dimArrowSize, options.drawingUnit, options.dimAngleUnit);
     }
     default:
       logger.warn();
@@ -595,6 +626,8 @@ export default (parsed, groups, ignoringLayers : string[] = [], ignoreBaseLayer 
       styles : parsed.tables.styles,
       dimTextHeight : parsed.header.dimTextHeight,
       dimArrowSize : parsed.header.dimArrowSize,
+      drawingUnit : parsed.header.drawingUnit,
+      dimAngleUnit : parsed.header.dimAngleUnit,
     };
     // on check si ce n'est pas le text du bloc de localisation
     if (!isText || !localisationsId.includes(entity.blockId)) {

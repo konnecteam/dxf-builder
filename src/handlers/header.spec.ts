@@ -30,6 +30,7 @@ describe('header', () => {
       textSize: 2.5,
       dimArrowSize: 2.5,
       dimTextHeight: 2.5,
+      dimAngleUnit: 0,
       title: '',
       tracewid: 15.68,
       updateDate: '',

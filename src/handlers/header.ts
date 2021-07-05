@@ -25,8 +25,9 @@ const drawingUnitEnum = {
 export default tuples => {
   let state;
   const header : {extMin : any, extMax : any, name : string, comments : string, author : string, lastSaveBy : string, title : string, creationDate : string, updateDate : string,
-    drawingUnit : string, latitude : string, longitude : string, tracewid : string, textSize : string, dimArrowSize : string, dimTextHeight : string} = {
-      extMin : {}, extMax : {}, name : '', comments : '', author : '', lastSaveBy : '', title : '', creationDate : '', updateDate : '', drawingUnit : '', latitude : '', longitude : '', tracewid : '', textSize : '', dimArrowSize : '', dimTextHeight : ''
+    drawingUnit : string, latitude : string, longitude : string, tracewid : string, textSize : string, dimArrowSize : string, dimAngleUnit : string, dimTextHeight : string} = {
+      extMin : {}, extMax : {}, name : '', comments : '', author : '', lastSaveBy : '', title : '', creationDate : '', updateDate : '', drawingUnit : '', latitude : '', longitude : '',
+      tracewid : '', textSize : '', dimArrowSize : '', dimAngleUnit : '', dimTextHeight : ''
     };
 
   tuples.forEach(tuple => {
@@ -76,6 +77,10 @@ export default tuples => {
       case '$DIMASZ':
         header.dimArrowSize = '';
         state = 'dimArrowSize';
+        break;
+      case '$DIMAUNIT':
+        header.dimAngleUnit = '';
+        state = 'dimAngleUnit';
         break;
       case '$DIMTXT':
         header.dimTextHeight = '';
@@ -150,7 +155,7 @@ export default tuples => {
           } else if (state === 'drawingUnit') {
             header.drawingUnit = drawingUnitEnum[value];
             state = undefined;
-          } else if (state === 'measurement') {
+          } else if (state === 'measurement' || state === 'dimAngleUnit') {
             if (type === 70) {
               header[state] = value;
             }
