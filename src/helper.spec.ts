@@ -3,7 +3,7 @@ import * as fs from 'fs-extra';
 import { join } from 'path';
 import { Box2 } from 'vecks';
 
-import Helper from './Helper';
+import Helper from './helper';
 const dxfContents = fs.readFileSync(join(__dirname, '../test/resources/1x1rectangle.dxf'), 'utf-8');
 
 describe('Helper', () => {
