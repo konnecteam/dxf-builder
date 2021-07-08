@@ -8,7 +8,7 @@ import parsedCustomAttribut from './parsedCustomAttribut';
 import logger from './util/logger';
 import rgbToColorAttribute from './util/rgbToColorAttribute';
 import rotate from './util/rotate';
-import toPiecewiseBezier, { multiplicity } from './util/toPiecewiseBezier';
+import { multiplicity, toPiecewiseBezier } from './util/toPiecewiseBezier';
 import transformBoundingBoxAndElement from './util/transformBoundingBoxAndElement';
 
 const fillNone = 'fill="none"';

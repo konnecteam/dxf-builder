@@ -53,7 +53,7 @@ export const computeInsertions = (k, knots) => {
   return inserts;
 };
 
-export default (k, controlPoints, knots) => {
+export const toPiecewiseBezier = (k, controlPoints, knots) => {
   checkPinned(k, knots);
   const insertions = computeInsertions(k, knots);
   return insertions.reduce((acc, tNew) => {
