@@ -1,7 +1,7 @@
 import { Box2 } from 'vecks';
 import entityToPolyline from './entityToPolyline';
 import * as toSVG from './toSVG';
-import transformBoundingBoxAndElement from './transformBoundingBoxAndElement';
+import transformBoundingBoxAndElement from './util/transformBoundingBoxAndElement';
 
 const fillNone = 'fill="none"';
 

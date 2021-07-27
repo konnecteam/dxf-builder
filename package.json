@@ -35,9 +35,11 @@
     "babel-preset-babili": "0.0.9",
     "cross-env": "^3.0.0",
     "expect": "^24.6.0",
+    "fs-extra": "^5.0.0",
+    "json": "^9.0.4",
     "mocha": "^5.2.0",
-    "opn": "^6.0.0",
     "nyc": "^14.1.1",
+    "opn": "^6.0.0",
     "pre-commit": "^1.2.2",
     "raw-loader": "^1.0.0",
     "react": "^16.7.0",
@@ -54,15 +56,12 @@
     "typings-core": "^2.2.0",
     "webpack": "2.2.1",
     "webpack-node-externals": "^1.5.4",
-    "json": "^9.0.4",
-    "fs-extra": "^5.0.0",
     "xml2js": "^0.4.19"
   },
   "dependencies": {
     "commander": "^2.17.1",
     "lodash": "^4.17.14",
     "pretty-data": "^0.40.0",
-    "round10": "^1.0.3",
     "vecks": "^3.7.2"
   },
   "pre-commit": [
