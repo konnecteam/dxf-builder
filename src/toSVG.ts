@@ -8,6 +8,7 @@ import parsedCustomAttribut from './parsedCustomAttribut';
 import logger from './util/logger';
 import rgbToColorAttribute from './util/rgbToColorAttribute';
 import rotate from './util/rotate';
+import { TextParser } from './util/textParser';
 import { multiplicity, toPiecewiseBezier } from './util/toPiecewiseBezier';
 import transformBoundingBoxAndElement from './util/transformBoundingBoxAndElement';
 
@@ -181,8 +182,11 @@ export const mtext = (entity, rgb, styles) => {
   const angleRadian = (entity.xAxisY > 0) ? Math.acos(entity.xAxisX) : -Math.acos(entity.xAxisX);
   const angleDegrees = angleRadian * 180 / Math.PI;
   const angleValue = isNaN(angleDegrees) ? 0 : -angleDegrees; // on recupere l'angle de rotation
-  const lines = entity.string.split('\\P'); // on split le text en ligne
   const matrices = computeMatrices(entity.transforms);
+  const tp = new TextParser(entity.nominalTextHeight);
+  const simplifyText = tp.replacePlainEntities(entity.string); // on simplifie le text en traitant les entités spéciales dans un premier temps
+  const distributedStyles = tp.distributeStyles(simplifyText); // on distribue les effets de text pour pouvoir les garder sur les retours à la ligne
+  const lines = distributedStyles.split('\\P'); // on split sur les \\P pour avoir nos différentes lignes
 
   let element = '';
   const styleName = getStyle(entity.styleName, styles); // on recupere la police
@@ -195,7 +199,8 @@ export const mtext = (entity, rgb, styles) => {
   element += `<text x="${entity.x}" y="${-entity.y}" font-size="${entity.nominalTextHeight}" font-family="${styleName}" fill="rgb(${rgb[0]},${rgb[1]},${rgb[2]})">`; // font-family="${entity.styleName}"
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    element += `<tspan x="${entity.x}" dy="${entity.nominalTextHeight * entity.lineSpacingFactor}">${line}</tspan>`;
+    const parsedLine = tp.parseText(line); // on interprete chacune de nos lignes
+    element += `<tspan x="${entity.x}" dy="${entity.nominalTextHeight * entity.lineSpacingFactor}">${parsedLine}</tspan>`;
   }
   element += `</text></g>`;
   matrices.forEach(transform => {
