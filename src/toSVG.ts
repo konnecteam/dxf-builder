@@ -184,8 +184,8 @@ export const mtext = (entity, rgb, styles) => {
   const angleValue = isNaN(angleDegrees) ? 0 : -angleDegrees; // on recupere l'angle de rotation
   const matrices = computeMatrices(entity.transforms);
   const tp = new TextParser(entity.nominalTextHeight);
-  const simplifyText = tp.replacePlainEntities(entity.string); // on simplifie le text en traitant les entités spéciales dans un premier temps
-  const distributedStyles = tp.distributeStyles(simplifyText); // on distribue les effets de text pour pouvoir les garder sur les retours à la ligne
+  const simplifiedText = tp.replacePlainEntities(entity.string); // on simplifie le text en traitant les entités spéciales dans un premier temps
+  const distributedStyles = tp.distributeStyles(simplifiedText); // on distribue les effets de text pour pouvoir les garder sur les retours à la ligne
   const lines = distributedStyles.split('\\P'); // on split sur les \\P pour avoir nos différentes lignes
 
   let element = '';
@@ -198,8 +198,7 @@ export const mtext = (entity, rgb, styles) => {
   element += `<g transform="rotate(${angleValue}, ${entity.x}, ${-entity.y})">`;
   element += `<text x="${entity.x}" y="${-entity.y}" font-size="${entity.nominalTextHeight}" font-family="${styleName}" fill="rgb(${rgb[0]},${rgb[1]},${rgb[2]})">`; // font-family="${entity.styleName}"
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const parsedLine = tp.parseText(line); // on interprete chacune de nos lignes
+    const parsedLine = tp.parseText(lines[i]); // on interprete chacune de nos lignes
     element += `<tspan x="${entity.x}" dy="${entity.nominalTextHeight * entity.lineSpacingFactor}">${parsedLine}</tspan>`;
   }
   element += `</text></g>`;
