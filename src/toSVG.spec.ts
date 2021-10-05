@@ -170,6 +170,6 @@ describe('toSVG', function() {
     assert.ok(textFromEntity.element.includes('font-size="10"'));
     assert.ok(textFromEntity.element.includes('font-family="ARIAL"'));
     assert.ok(textFromEntity.element.includes('fill="rgb(126,126,126)"'));
-    assert.ok(textFromEntity.element.includes('<tspan x="10" dy="10">line1</tspan><tspan x="10" dy="10">line2</tspan><tspan x="10" dy="10">line3</tspan><tspan x="10" dy="10">line4</tspan>'));
+    assert.ok(textFromEntity.element.includes('<tspan x="10" dy="10"><tspan >line1</tspan></tspan><tspan x="10" dy="10"><tspan >line2</tspan></tspan><tspan x="10" dy="10"><tspan >line3</tspan></tspan><tspan x="10" dy="10"><tspan >line4</tspan></tspan>'));
   });
 });
